@@ -1,5 +1,6 @@
 import type { Cert } from '../data/certifications'
 import { useNavigate } from 'react-router-dom'
+import Lapisan from "../components/Lapisan";
 
 type Props = {
   cert: Cert | null
@@ -11,7 +12,7 @@ export default function CertModal({ cert, onClose }: Props) {
   if (!cert) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <Lapisan className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* backdrop */}
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
@@ -58,6 +59,6 @@ export default function CertModal({ cert, onClose }: Props) {
           </div>
         </div>
       </div>
-    </div>
+    </Lapisan>
   )
 }

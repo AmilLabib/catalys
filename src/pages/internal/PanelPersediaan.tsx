@@ -276,16 +276,24 @@ export default function PanelPersediaan() {
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {supplierBahan(b, kota).map((s) => (
-                      <div key={s.nama} className="rounded-xl border bg-white p-3 flex flex-col hover:shadow-md transition-shadow">
-                        <div className="flex items-start gap-2">
-                          <span className="w-9 h-9 shrink-0 rounded-lg bg-gradient-to-br from-[#e1ecf3] to-[#9cb2c1] flex items-center justify-center text-xs font-bold text-primary">
-                            {s.nama
-                              .replace(/^(Grosir|CV|Kios) /, "")
-                              .split(" ")
-                              .slice(0, 2)
-                              .map((w) => w[0])
-                              .join("")}
+                      <div key={s.nama} className="rounded-xl border bg-white flex flex-col overflow-hidden hover:shadow-md transition-shadow">
+                        <div className="relative h-28 bg-gray-100">
+                          <img src={s.foto.src} alt={`Ilustrasi ${s.jenis.toLowerCase()}`} loading="lazy" className="h-full w-full object-cover" />
+                          <span className="absolute top-2 left-2 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-semibold text-primary shadow-sm">
+                            {s.jenis}
                           </span>
+                          <a
+                            href={s.foto.sumber}
+                            target="_blank"
+                            rel="noreferrer"
+                            title={`Foto ilustrasi: ${s.foto.penulis}, ${s.foto.lisensi}, via Wikimedia Commons`}
+                            className="absolute bottom-0 right-0 max-w-full truncate rounded-tl-md bg-black/45 px-1.5 py-0.5 text-[9px] text-white/90 hover:bg-black/65"
+                          >
+                            Foto: {s.foto.penulis} · {s.foto.lisensi}
+                          </a>
+                        </div>
+                        <div className="p-3 flex flex-col flex-1">
+                        <div className="flex items-start gap-2">
                           <div className="min-w-0">
                             <p className="text-sm font-semibold text-gray-900 leading-tight line-clamp-2">{s.nama}</p>
                             <p className="text-[11px] text-gray-500">{s.jenis}</p>
@@ -299,7 +307,7 @@ export default function PanelPersediaan() {
                           {s.jarakKm} km · {s.kecamatan} · <Star className="w-3 h-3 inline fill-amber-400 text-amber-400 -mt-0.5" /> {s.rating}
                         </p>
                         <p className="text-[11px] text-gray-400">{s.minOrder}</p>
-                        <div className="mt-3 flex gap-1.5">
+                        <div className="mt-auto pt-3 flex gap-1.5">
                           <a
                             href={linkMaps(s)}
                             target="_blank"
@@ -314,6 +322,7 @@ export default function PanelPersediaan() {
                           >
                             <ShoppingCart className="w-3.5 h-3.5" /> Beli
                           </button>
+                        </div>
                         </div>
                       </div>
                     ))}

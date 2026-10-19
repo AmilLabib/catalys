@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { X, Plus, Trash2, Calculator, Search, Boxes } from "lucide-react";
 import { useBahanBaku } from "../context/BahanBakuContext";
 import type { ItemResep } from "../data/bahanBaku";
+import Lapisan from "../components/Lapisan";
 
 type Baris = { id: string; label: string; amount: number };
 type Mode = "produsen" | "pedagang";
@@ -120,7 +121,7 @@ export default function HppCalculatorModal({
   const tersaring = bahan.filter((b) => (b.nama + " " + b.kategori).toLowerCase().includes(cari.toLowerCase()));
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+    <Lapisan className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[92vh]">
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-2">
@@ -265,6 +266,6 @@ export default function HppCalculatorModal({
           </button>
         </div>
       </div>
-    </div>
+    </Lapisan>
   );
 }

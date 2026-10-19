@@ -1,4 +1,5 @@
 import { Info, X } from "lucide-react";
+import Lapisan from "../components/Lapisan";
 
 export type AccountInfo = {
   code: string;
@@ -34,7 +35,7 @@ export default function AccountInfoModal({
 }) {
   if (!visible || !account) return null;
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+    <Lapisan className="fixed inset-0 z-[70] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative bg-white rounded-2xl p-6 w-[min(100%,600px)] shadow-lg max-h-[90vh] overflow-y-auto">
         <div className="flex items-start justify-between gap-4">
@@ -67,6 +68,6 @@ export default function AccountInfoModal({
           </div>
         )}
       </div>
-    </div>
+    </Lapisan>
   );
 }

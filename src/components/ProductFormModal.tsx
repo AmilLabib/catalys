@@ -4,6 +4,7 @@ import type { ProductForm } from "./produkForm";
 import HppCalculatorModal from "./HppCalculatorModal";
 import { useBahanBaku } from "../context/BahanBakuContext";
 import type { ItemResep } from "../data/bahanBaku";
+import Lapisan from "../components/Lapisan";
 
 
 // Form tambah/ubah produk yang dipakai bersama oleh Kasir dan Inventaris.
@@ -53,7 +54,7 @@ export default function ProductFormModal({
   const input = "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-4 focus:ring-primary/10";
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+    <Lapisan className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]">
         <div className="flex items-center justify-between p-4 border-b">
           <h3 className="font-semibold text-lg text-gray-800">{title}</h3>
@@ -162,6 +163,6 @@ export default function ProductFormModal({
           setResepBaru(r);
         }}
       />
-    </div>
+    </Lapisan>
   );
 }

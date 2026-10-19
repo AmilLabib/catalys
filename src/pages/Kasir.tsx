@@ -9,6 +9,7 @@ import ProductImage from "../components/ProductImage";
 import ProductFormModal from "../components/ProductFormModal";
 import { PRODUK_KOSONG } from "../components/produkForm";
 import { rayakan } from "../utils/efek";
+import Lapisan from "../components/Lapisan";
 
 interface CartItem {
   id: string;
@@ -592,7 +593,7 @@ export default function Kasir() {
 
       {/* Mobile slide-over cart */}
       {isCartOpen && (
-        <div className="md:hidden fixed inset-0 z-50">
+        <Lapisan className="md:hidden fixed inset-0 z-50">
           <div
             className="absolute inset-0 bg-black/40"
             onClick={() => setIsCartOpen(false)}
@@ -694,11 +695,11 @@ export default function Kasir() {
               </button>
             </div>
           </div>
-        </div>
+        </Lapisan>
       )}
 
       {isPaymentOpen && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/40">
+        <Lapisan className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/40">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6">
             <h3 className="text-lg font-semibold mb-3">Pembayaran</h3>
 
@@ -768,11 +769,11 @@ export default function Kasir() {
               </button>
             </div>
           </div>
-        </div>
+        </Lapisan>
       )}
 
       {isOrdersPanelOpen && (
-        <div className="fixed inset-0 z-[80]">
+        <Lapisan className="fixed inset-0 z-[80]">
           <div
             className="absolute inset-0 bg-black/40"
             onClick={() => setIsOrdersPanelOpen(false)}
@@ -857,7 +858,7 @@ export default function Kasir() {
               )}
             </div>
           </div>
-        </div>
+        </Lapisan>
       )}
       <ProductFormModal
         key={tambahOpen}

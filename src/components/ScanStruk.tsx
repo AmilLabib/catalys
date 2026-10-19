@@ -10,6 +10,7 @@ import { useBahanBaku } from "../context/BahanBakuContext";
 import QuotaBadge from "./QuotaBadge";
 import { formatRp } from "../data/laporan";
 import { lockedMessage } from "../config/access";
+import Lapisan from "../components/Lapisan";
 
 // Satu baris struk. Untuk struk pembelian, baris yang cocok dengan bahan baku
 // (bahanId) menambah stok persediaan sebanyak `qty`.
@@ -219,7 +220,7 @@ export default function ScanStruk({ hanyaPembelian = false, className = "" }: { 
       <canvas ref={canvasRef} className="hidden" />
 
       {modalKamera && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
+        <Lapisan className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
             <div className="p-4 border-b flex justify-between items-center">
               <h3 className="font-semibold">Scan Struk {jenis === "penjualan" ? "Penjualan" : "Pembelian"}</h3>
@@ -260,11 +261,11 @@ export default function ScanStruk({ hanyaPembelian = false, className = "" }: { 
               <p className="mt-2 text-center text-[11px] text-gray-500">Setiap analisis memakai 1 token scan struk.</p>
             </div>
           </div>
-        </div>
+        </Lapisan>
       )}
 
       {data && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
+        <Lapisan className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden">
             <div className="p-4 border-b flex justify-between items-center">
               <h3 className="font-semibold">Konfirmasi Isi Struk {jenis === "pembelian" ? "Pembelian" : "Penjualan"}</h3>
@@ -338,7 +339,7 @@ export default function ScanStruk({ hanyaPembelian = false, className = "" }: { 
               </button>
             </div>
           </div>
-        </div>
+        </Lapisan>
       )}
     </div>
   );

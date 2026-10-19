@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAccount } from "../context/AccountContext";
 import type { FeatureKey } from "../config/access";
+import Lapisan from "../components/Lapisan";
 
 const TOUR_KEY = "tour_shown_v1";
 
@@ -162,7 +163,7 @@ export default function TourGuide() {
 
   if (showWelcome) {
     return (
-      <div className="fixed inset-0 z-[1000] flex items-center justify-center pointer-events-auto">
+      <Lapisan className="fixed inset-0 z-[1000] flex items-center justify-center pointer-events-auto">
         <div className="absolute inset-0 bg-black/40" />
         <div className="bg-white rounded-2xl p-6 shadow-xl z-10 max-w-sm w-full mx-4 relative">
           <div className="mb-4 flex justify-center">
@@ -214,13 +215,13 @@ export default function TourGuide() {
             </label>
           </div>
         </div>
-      </div>
+      </Lapisan>
     );
   }
 
   if (showFinished) {
     return (
-      <div className="fixed inset-0 z-[1000] flex items-center justify-center pointer-events-auto">
+      <Lapisan className="fixed inset-0 z-[1000] flex items-center justify-center pointer-events-auto">
         <div className="absolute inset-0 bg-black/40" />
         <div className="bg-white rounded-2xl p-6 shadow-xl z-10 max-w-sm w-full mx-4 relative">
           <div className="mb-4 flex justify-center">
@@ -242,7 +243,7 @@ export default function TourGuide() {
             Mulai Gunakan Aplikasi
           </button>
         </div>
-      </div>
+      </Lapisan>
     );
   }
 
@@ -291,7 +292,7 @@ export default function TourGuide() {
   }
 
   return (
-    <div className="fixed inset-0 z-[1000] pointer-events-none overflow-hidden">
+    <Lapisan className="fixed inset-0 z-[1000] pointer-events-none overflow-hidden">
       {!rect && (
         <div className="absolute inset-0 bg-black/40 transition-opacity duration-300" />
       )}
@@ -348,6 +349,6 @@ export default function TourGuide() {
           </div>
         </div>
       </div>
-    </div>
+    </Lapisan>
   );
 }

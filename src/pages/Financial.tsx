@@ -3,6 +3,9 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   ResponsiveContainer,
   ComposedChart,
+  AreaChart,
+  Area,
+  ReferenceLine,
   BarChart,
   Bar,
   Line,
@@ -43,6 +46,7 @@ import {
   ENTITAS,
   KONSOLIDASI,
   LABA_RUGI,
+  NERACA,
   TAHUN_TERSEDIA,
   TAHUN_BERJALAN,
   formatRp,
@@ -121,8 +125,38 @@ export default function Financial() {
     { pos: "Laba bersih", ini: R.labaBersih, lalu: RL.labaBersih },
   ];
 
-  const { entries } = useJournal();
+  const marginBulanan = lap.bulanan.map((b) => ({
+    bulan: b.bulan,
+    margin: b.pendapatan ? (b.laba / b.pendapatan) * 100 : 0,
+  }));
+
+  const komposisiAset = [...NERACA.asetLancar, ...NERACA.asetTidakLancar]
+    .map((p) => ({ name: p.label.replace(" (harga perolehan)", "").replace(" (neto)", ""), value: lap.neraca[p.key] || 0 }))
+    .filter((d) => d.value > 0)
+    .sort((a, b) => b.value - a.value);
+
+  const strukturPendanaan = [
+    { name: "Liabilitas jangka pendek", value: R.totalLiabilitasPendek },
+    { name: "Liabilitas jangka panjang", value: R.totalLiabilitasPanjang },
+    { name: "Ekuitas", value: R.totalEkuitas },
+  ].filter((d) => d.value > 0);
+
+  const arusKasAktivitas = [
+    { aktivitas: "Operasi", ini: lap.arusKas.totalOperasi, lalu: lap.arusKasLalu.totalOperasi },
+    { aktivitas: "Investasi", ini: lap.arusKas.totalInvestasi, lalu: lap.arusKasLalu.totalInvestasi },
+    { aktivitas: "Pendanaan", ini: lap.arusKas.totalPendanaan, lalu: lap.arusKasLalu.totalPendanaan },
+  ];
+
+  // saldo kas akhir tiap bulan, dari kas awal tahun ditambah arus kas bersih bulanan
+  const saldoKasBulanan = lap.bulanan.reduce<{ bulan: string; saldo: number }[]>((acc, b) => {
+    const sebelum = acc.length ? acc[acc.length - 1].saldo : lap.arusKas.kasAwal;
+    acc.push({ bulan: b.bulan, saldo: sebelum + b.kasMasuk - b.kasKeluar });
+    return acc;
+  }, []);
+
+  const { entries, semuaJurnal } = useJournal();
   const { accounts } = useChartOfAccounts();
+  const jurnalTerbaru = semuaJurnal.slice(0, 4);
   const kontribusiCabang = useMemo(() => {
     if (entitas !== KONSOLIDASI) return [];
     return BRANCHES.map((b) => ({
@@ -205,10 +239,13 @@ export default function Financial() {
     { label: "Total Aset", nilai: R.totalAset, lalu: RL.totalAset, icon: Wallet },
   ];
 
+  const sumbuRp = (v: number) => formatRpSingkat(Number(v)).replace("Rp ", "");
+  const rpTooltip = (v: number, n: string) => [formatRp(v), n] as [string, string];
+
   return (
     <div className="space-y-6">
-      {/* Kepala halaman */}
-      <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+      {/* Kepala halaman: entitas, periode, ekspor */}
+      <div className="flex flex-col xl:flex-row xl:items-end xl:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-primary">Laporan Keuangan</h2>
           <p className="text-sm text-gray-500">
@@ -240,14 +277,83 @@ export default function Financial() {
               ))}
             </select>
           </label>
-          <Link
-            to="/jurnal"
-            className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-95"
-          >
-            <FileEdit className="w-4 h-4" /> Entri Jurnal
-          </Link>
+          <div className="inline-flex items-center gap-2 rounded-xl border bg-white px-2 py-1.5 shadow-sm">
+            <span className="pl-1 text-sm text-gray-500">Ekspor</span>
+            <button
+              onClick={() => ekspor("excel")}
+              disabled={mengekspor !== null || sisaEkspor === 0}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-600 px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              {mengekspor === "excel" ? "Menyiapkan..." : "Excel"}
+            </button>
+            <button
+              onClick={() => ekspor("pdf")}
+              disabled={mengekspor !== null || sisaEkspor === 0}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-red-600 px-2.5 py-1 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              {mengekspor === "pdf" ? "Menyiapkan..." : "PDF"}
+            </button>
+            <QuotaBadge kuota="eksporLaporan" />
+          </div>
         </div>
       </div>
+      {sisaEkspor === 0 && (
+        <Link to="/profil?tab=paket" className="-mt-4 block text-right text-xs font-medium text-primary underline">
+          Kuota ekspor habis. Upgrade paket untuk ekspor tanpa batas.
+        </Link>
+      )}
+
+      {/* ===== Bagian 1: pencatatan transaksi ===== */}
+      <PemisahBagian
+        nomor={1}
+        judul="Pencatatan Transaksi"
+        teks="Catat penjualan dan pembelian lewat scan struk, atau input jurnal secara manual."
+      />
+      <section className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <ScanStruk className="lg:col-span-3" />
+        <div className="lg:col-span-2 card-elegant p-5 flex flex-col">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <h3 className="font-semibold text-gray-900">Entri Jurnal</h3>
+              <p className="text-xs text-gray-500">Input transaksi manual dengan templat dan saran akun.</p>
+            </div>
+            <span className="w-9 h-9 shrink-0 rounded-xl chip-gradient flex items-center justify-center">
+              <FileEdit className="w-4 h-4" />
+            </span>
+          </div>
+          <p className="mt-4 mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Jurnal terbaru</p>
+          <ul className="space-y-2 flex-1">
+            {jurnalTerbaru.map((j) => {
+              const total = j.lines.filter((l) => l.side === "debit").reduce((s, l) => s + l.amount, 0);
+              return (
+                <li key={j.id} className="flex items-center justify-between gap-3 rounded-lg bg-gray-50 px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-gray-800">{j.description || "Jurnal umum"}</p>
+                    <p className="text-[11px] text-gray-400">{j.date}</p>
+                  </div>
+                  <span className="shrink-0 text-sm font-semibold text-primary tabular-nums">{formatRpSingkat(total)}</span>
+                </li>
+              );
+            })}
+            {jurnalTerbaru.length === 0 && <li className="text-sm text-gray-400">Belum ada jurnal.</li>}
+          </ul>
+          <Link
+            to="/jurnal"
+            className="mt-4 btn-gradient inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold"
+          >
+            <FileEdit className="w-4 h-4" /> Buka Entri Jurnal <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+      </section>
+
+      {/* ===== Bagian 2: laporan keuangan & insight ===== */}
+      <PemisahBagian
+        nomor={2}
+        judul="Laporan Keuangan & Insight"
+        teks={`Hasil otomatis dari jurnal · ${lap.entitas} · ${labelPeriode(lap)}`}
+      />
 
       {/* KPI */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -273,148 +379,6 @@ export default function Financial() {
             </div>
           );
         })}
-      </section>
-
-      {/* Grafik pos-pos utama (pengganti Asset Mix) */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="card-elegant p-5">
-          <h3 className="font-semibold text-gray-900">Pendapatan, Beban, dan Laba Bulanan</h3>
-          <p className="text-xs text-gray-500 mb-3">Batang = pendapatan & beban, garis = laba.</p>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={lap.bulanan}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef2f6" />
-                <XAxis dataKey="bulan" tickLine={false} axisLine={false} fontSize={12} />
-                <YAxis width={56} tickLine={false} axisLine={false} fontSize={11} tickFormatter={(v) => formatRpSingkat(Number(v)).replace("Rp ", "")} />
-                <Tooltip formatter={(v: number, n: string) => [formatRp(v), n]} />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="pendapatan" name="Pendapatan" fill="#2f6b8f" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="beban" name="Beban" fill="#9cb2c1" radius={[4, 4, 0, 0]} />
-                <Line dataKey="laba" name="Laba" stroke="#0f766e" strokeWidth={2.5} dot={false} />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="card-elegant p-5">
-          <h3 className="font-semibold text-gray-900">Komposisi Beban Usaha</h3>
-          <p className="text-xs text-gray-500 mb-3">Total {formatRp(R.totalBebanUsaha)}</p>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={komposisiBeban} layout="vertical" margin={{ left: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#eef2f6" />
-                <XAxis type="number" tickLine={false} axisLine={false} fontSize={11} tickFormatter={(v) => formatRpSingkat(Number(v)).replace("Rp ", "")} />
-                <YAxis type="category" dataKey="name" width={150} tickLine={false} axisLine={false} fontSize={11} />
-                <Tooltip formatter={(v: number) => formatRp(v)} />
-                <Bar dataKey="value" name="Beban" radius={[0, 4, 4, 0]}>
-                  {komposisiBeban.map((_, i) => (
-                    <Cell key={i} fill={WARNA[i % WARNA.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="card-elegant p-5">
-          <h3 className="font-semibold text-gray-900">Arus Kas Masuk vs Keluar</h3>
-          <p className="text-xs text-gray-500 mb-3">
-            Kas operasi bersih {formatRp(lap.arusKas.totalOperasi)}
-          </p>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={lap.bulanan}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef2f6" />
-                <XAxis dataKey="bulan" tickLine={false} axisLine={false} fontSize={12} />
-                <YAxis width={56} tickLine={false} axisLine={false} fontSize={11} tickFormatter={(v) => formatRpSingkat(Number(v)).replace("Rp ", "")} />
-                <Tooltip formatter={(v: number, n: string) => [formatRp(v), n]} />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="kasMasuk" name="Kas masuk" fill="#0f766e" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="kasKeluar" name="Kas keluar" fill="#e11d48" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="card-elegant p-5">
-          {entitas === KONSOLIDASI ? (
-            <>
-              <h3 className="font-semibold text-gray-900">Kontribusi Pendapatan per Cabang</h3>
-              <p className="text-xs text-gray-500 mb-3">Porsi tiap cabang terhadap pendapatan konsolidasi.</p>
-              <div className="h-64 flex items-center">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={kontribusiCabang} dataKey="value" nameKey="name" innerRadius={55} outerRadius={90} paddingAngle={3}>
-                      {kontribusiCabang.map((_, i) => (
-                        <Cell key={i} fill={WARNA[i % WARNA.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(v: number) => formatRp(v)} />
-                    <Legend wrapperStyle={{ fontSize: 12 }} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </>
-          ) : (
-            <>
-              <h3 className="font-semibold text-gray-900">Perbandingan dengan Tahun Lalu</h3>
-              <p className="text-xs text-gray-500 mb-3">
-                {tahun} vs {tahun - 1}
-                {lap.berjalan ? " (tahun berjalan belum penuh)" : ""}
-              </p>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={perbandingan}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef2f6" />
-                    <XAxis dataKey="pos" tickLine={false} axisLine={false} fontSize={12} />
-                    <YAxis width={56} tickLine={false} axisLine={false} fontSize={11} tickFormatter={(v) => formatRpSingkat(Number(v)).replace("Rp ", "")} />
-                    <Tooltip formatter={(v: number, n: string) => [formatRp(v), n]} />
-                    <Legend wrapperStyle={{ fontSize: 12 }} />
-                    <Bar dataKey="ini" name={String(tahun)} fill="#012a3d" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="lalu" name={String(tahun - 1)} fill="#9cb2c1" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </>
-          )}
-        </div>
-      </section>
-
-      {/* Scan struk + ekspor */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <ScanStruk className="lg:col-span-2" />
-        <div className="card-elegant p-5 flex flex-col">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <h3 className="font-semibold text-gray-900">Ekspor Laporan</h3>
-              <p className="text-xs text-gray-500">Semua laporan + CaLK periode {tahun}.</p>
-            </div>
-            <QuotaBadge kuota="eksporLaporan" />
-          </div>
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <button
-              onClick={() => ekspor("excel")}
-              disabled={mengekspor !== null || sisaEkspor === 0}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-emerald-600 px-3 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
-            >
-              <FileSpreadsheet className="w-4 h-4" />
-              {mengekspor === "excel" ? "Menyiapkan..." : "Excel"}
-            </button>
-            <button
-              onClick={() => ekspor("pdf")}
-              disabled={mengekspor !== null || sisaEkspor === 0}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-red-600 px-3 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
-            >
-              <FileText className="w-4 h-4" />
-              {mengekspor === "pdf" ? "Menyiapkan..." : "PDF"}
-            </button>
-          </div>
-          {sisaEkspor === 0 && (
-            <Link to="/profil?tab=paket" className="mt-3 text-xs font-medium text-primary underline">
-              Kuota habis. Upgrade paket untuk ekspor tanpa batas.
-            </Link>
-          )}
-        </div>
       </section>
 
       {/* Tabel laporan keuangan */}
@@ -461,7 +425,7 @@ export default function Financial() {
         </div>
       </section>
 
-      {/* Visual & insight */}
+      {/* Insight */}
       <section className="card-elegant p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
           <div className="flex items-center gap-3">
@@ -469,7 +433,7 @@ export default function Financial() {
               <Lightbulb className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Visual & Insight</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Insight Keuangan</h3>
               <p className="text-sm text-gray-500">Rasio keuangan utama dan apa artinya bagi usaha Anda.</p>
             </div>
           </div>
@@ -507,12 +471,186 @@ export default function Financial() {
         </div>
       </section>
 
+      {/* ===== Bagian 3: analisis grafik ===== */}
+      <PemisahBagian nomor={3} judul="Analisis Grafik" teks="Delapan sudut pandang atas kinerja, posisi keuangan, dan arus kas." />
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <KartuGrafik judul="Pendapatan, Beban, dan Laba Bulanan" sub="Batang = pendapatan & beban, garis = laba.">
+          <ComposedChart data={lap.bulanan}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef2f6" />
+            <XAxis dataKey="bulan" tickLine={false} axisLine={false} fontSize={12} />
+            <YAxis width={56} tickLine={false} axisLine={false} fontSize={11} tickFormatter={sumbuRp} />
+            <Tooltip formatter={rpTooltip} />
+            <Legend wrapperStyle={{ fontSize: 12 }} />
+            <Bar dataKey="pendapatan" name="Pendapatan" fill="#2f6b8f" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="beban" name="Beban" fill="#9cb2c1" radius={[4, 4, 0, 0]} />
+            <Line dataKey="laba" name="Laba" stroke="#0f766e" strokeWidth={2.5} dot={false} />
+          </ComposedChart>
+        </KartuGrafik>
+
+        <KartuGrafik judul="Tren Margin Laba Bulanan" sub={`Margin laba bersih setahun ${persen(rasio.marginBersih)}`}>
+          <AreaChart data={marginBulanan}>
+            <defs>
+              <linearGradient id="gradMargin" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#0f766e" stopOpacity={0.35} />
+                <stop offset="100%" stopColor="#0f766e" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef2f6" />
+            <XAxis dataKey="bulan" tickLine={false} axisLine={false} fontSize={12} />
+            <YAxis width={44} tickLine={false} axisLine={false} fontSize={11} tickFormatter={(v) => `${Math.round(Number(v))}%`} />
+            <Tooltip formatter={(v: number) => [`${v.toFixed(1).replace(".", ",")}%`, "Margin laba"]} />
+            <Area type="monotone" dataKey="margin" stroke="#0f766e" strokeWidth={2.5} fill="url(#gradMargin)" />
+          </AreaChart>
+        </KartuGrafik>
+
+        <KartuGrafik judul="Komposisi Beban Usaha" sub={`Total ${formatRp(R.totalBebanUsaha)}`}>
+          <BarChart data={komposisiBeban} layout="vertical" margin={{ left: 8 }}>
+            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#eef2f6" />
+            <XAxis type="number" tickLine={false} axisLine={false} fontSize={11} tickFormatter={sumbuRp} />
+            <YAxis type="category" dataKey="name" width={150} tickLine={false} axisLine={false} fontSize={11} />
+            <Tooltip formatter={(v: number) => formatRp(v)} />
+            <Bar dataKey="value" name="Beban" radius={[0, 4, 4, 0]}>
+              {komposisiBeban.map((_, i) => (
+                <Cell key={i} fill={WARNA[i % WARNA.length]} />
+              ))}
+            </Bar>
+          </BarChart>
+        </KartuGrafik>
+
+        <KartuGrafik
+          judul="Perbandingan dengan Tahun Lalu"
+          sub={`${tahun} vs ${tahun - 1}${lap.berjalan ? " (tahun berjalan belum penuh)" : ""}`}
+        >
+          <BarChart data={perbandingan}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef2f6" />
+            <XAxis dataKey="pos" tickLine={false} axisLine={false} fontSize={12} />
+            <YAxis width={56} tickLine={false} axisLine={false} fontSize={11} tickFormatter={sumbuRp} />
+            <Tooltip formatter={rpTooltip} />
+            <Legend wrapperStyle={{ fontSize: 12 }} />
+            <Bar dataKey="ini" name={String(tahun)} fill="#012a3d" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="lalu" name={String(tahun - 1)} fill="#9cb2c1" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </KartuGrafik>
+
+        <KartuGrafik judul="Komposisi Aset" sub={`Total aset ${formatRp(R.totalAset)}`}>
+          <PieChart>
+            <Pie data={komposisiAset} dataKey="value" nameKey="name" innerRadius={55} outerRadius={90} paddingAngle={2}>
+              {komposisiAset.map((_, i) => (
+                <Cell key={i} fill={WARNA[i % WARNA.length]} />
+              ))}
+            </Pie>
+            <Tooltip formatter={(v: number) => formatRp(v)} />
+            <Legend wrapperStyle={{ fontSize: 11 }} layout="vertical" align="right" verticalAlign="middle" />
+          </PieChart>
+        </KartuGrafik>
+
+        <KartuGrafik
+          judul="Struktur Pendanaan"
+          sub={`Utang terhadap ekuitas ${rasio.der.toFixed(2).replace(".", ",")}x`}
+        >
+          <PieChart>
+            <Pie data={strukturPendanaan} dataKey="value" nameKey="name" innerRadius={55} outerRadius={90} paddingAngle={3}>
+              {strukturPendanaan.map((_, i) => (
+                <Cell key={i} fill={["#c2410c", "#ca8a04", "#0f766e"][i % 3]} />
+              ))}
+            </Pie>
+            <Tooltip formatter={(v: number) => formatRp(v)} />
+            <Legend wrapperStyle={{ fontSize: 12 }} />
+          </PieChart>
+        </KartuGrafik>
+
+        <KartuGrafik judul="Arus Kas Masuk vs Keluar" sub={`Kas operasi bersih ${formatRp(lap.arusKas.totalOperasi)}`}>
+          <BarChart data={lap.bulanan}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef2f6" />
+            <XAxis dataKey="bulan" tickLine={false} axisLine={false} fontSize={12} />
+            <YAxis width={56} tickLine={false} axisLine={false} fontSize={11} tickFormatter={sumbuRp} />
+            <Tooltip formatter={rpTooltip} />
+            <Legend wrapperStyle={{ fontSize: 12 }} />
+            <Bar dataKey="kasMasuk" name="Kas masuk" fill="#0f766e" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="kasKeluar" name="Kas keluar" fill="#e11d48" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </KartuGrafik>
+
+        <KartuGrafik judul="Arus Kas per Aktivitas" sub={`Kenaikan kas bersih ${formatRp(lap.arusKas.kenaikanKas)}`}>
+          <BarChart data={arusKasAktivitas}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef2f6" />
+            <XAxis dataKey="aktivitas" tickLine={false} axisLine={false} fontSize={12} />
+            <YAxis width={56} tickLine={false} axisLine={false} fontSize={11} tickFormatter={sumbuRp} />
+            <Tooltip formatter={rpTooltip} />
+            <Legend wrapperStyle={{ fontSize: 12 }} />
+            <ReferenceLine y={0} stroke="#94a3b8" />
+            <Bar dataKey="ini" name={String(tahun)} fill="#2f6b8f" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="lalu" name={String(tahun - 1)} fill="#9cb2c1" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </KartuGrafik>
+
+        {entitas === KONSOLIDASI ? (
+          <KartuGrafik judul="Kontribusi Pendapatan per Cabang" sub="Porsi tiap cabang terhadap pendapatan konsolidasi.">
+            <PieChart>
+              <Pie data={kontribusiCabang} dataKey="value" nameKey="name" innerRadius={55} outerRadius={90} paddingAngle={3}>
+                {kontribusiCabang.map((_, i) => (
+                  <Cell key={i} fill={WARNA[i % WARNA.length]} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(v: number) => formatRp(v)} />
+              <Legend wrapperStyle={{ fontSize: 12 }} layout="vertical" align="right" verticalAlign="middle" />
+            </PieChart>
+          </KartuGrafik>
+        ) : (
+          <KartuGrafik judul="Saldo Kas Bulanan" sub={`Kas awal ${formatRp(lap.arusKas.kasAwal)} → akhir ${formatRp(lap.arusKas.kasAkhir)}`}>
+            <AreaChart data={saldoKasBulanan}>
+              <defs>
+                <linearGradient id="gradSaldo" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#2f6b8f" stopOpacity={0.35} />
+                  <stop offset="100%" stopColor="#2f6b8f" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef2f6" />
+              <XAxis dataKey="bulan" tickLine={false} axisLine={false} fontSize={12} />
+              <YAxis width={56} tickLine={false} axisLine={false} fontSize={11} tickFormatter={sumbuRp} />
+              <Tooltip formatter={(v: number) => [formatRp(v), "Saldo kas"]} />
+              <Area type="monotone" dataKey="saldo" stroke="#2f6b8f" strokeWidth={2.5} fill="url(#gradSaldo)" />
+            </AreaChart>
+          </KartuGrafik>
+        )}
+      </section>
+
       {/* entri jurnal pengguna hanya memengaruhi laporan entitas sendiri */}
       {entitas !== sendiri && entries.length > 0 && (
         <p className="text-xs text-gray-400 text-center">
           Jurnal yang Anda input hanya tercatat di laporan {sendiri}.
         </p>
       )}
+    </div>
+  );
+}
+
+// Pemisah antarbagian halaman: nomor, judul, dan garis pembatas
+function PemisahBagian({ nomor, judul, teks }: { nomor: number; judul: string; teks: string }) {
+  return (
+    <div className="flex items-center gap-4 pt-4">
+      <span className="grad-navy w-10 h-10 shrink-0 rounded-xl flex items-center justify-center text-base font-extrabold text-white shadow-md">
+        {nomor}
+      </span>
+      <div className="shrink-0">
+        <h2 className="text-lg font-bold text-primary leading-tight">{judul}</h2>
+        <p className="text-xs text-gray-500">{teks}</p>
+      </div>
+      <div className="h-px flex-1 bg-gradient-to-r from-primary/30 to-transparent" />
+    </div>
+  );
+}
+
+function KartuGrafik({ judul, sub, children }: { judul: string; sub: string; children: React.ReactElement }) {
+  return (
+    <div className="card-elegant p-5">
+      <h3 className="font-semibold text-gray-900">{judul}</h3>
+      <p className="text-xs text-gray-500 mb-3">{sub}</p>
+      <div className="h-64">
+        <ResponsiveContainer width="100%" height="100%">
+          {children}
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { X } from "lucide-react";
+import Lapisan from "../components/Lapisan";
 
 export default function Modal({
   isOpen,
@@ -15,7 +16,7 @@ export default function Modal({
 }) {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+    <Lapisan className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
       <div className={`bg-white rounded-2xl shadow-2xl w-full ${wide ? "max-w-2xl" : "max-w-lg"} flex flex-col max-h-[90vh]`}>
         <div className="flex items-center justify-between p-4 border-b border-gray-100">
           <h3 className="font-semibold text-lg text-gray-800">{title}</h3>
@@ -25,6 +26,6 @@ export default function Modal({
         </div>
         <div className="p-5 overflow-y-auto">{children}</div>
       </div>
-    </div>
+    </Lapisan>
   );
 }

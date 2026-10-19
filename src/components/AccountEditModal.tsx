@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Lapisan from "../components/Lapisan";
 
 const KATEGORI_AKUN: { value: string; label: string }[] = [
   { value: "asset", label: "Aset" },
@@ -70,7 +71,7 @@ export default function AccountEditModal({
   const input = "w-full mt-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-4 focus:ring-primary/10";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <Lapisan className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative bg-white rounded-2xl p-6 w-[min(100%,560px)] shadow-lg">
         <h3 className="text-lg font-semibold mb-4">{isEdit ? "Ubah Akun" : "Tambah Akun"}</h3>
@@ -114,6 +115,6 @@ export default function AccountEditModal({
           </button>
         </div>
       </div>
-    </div>
+    </Lapisan>
   );
 }

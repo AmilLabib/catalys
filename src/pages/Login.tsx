@@ -1,10 +1,14 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Building2, Store, Lock, Check } from "lucide-react";
 import { useAccount } from "../context/AccountContext";
 import { SECTOR_OPTIONS, useBusinessSector, type BusinessSector } from "../context/BusinessSectorContext";
 import { BRANCHES, PLANS, PLAN_LABEL, type Plan, type Role } from "../config/access";
 import { useEfekKursor } from "../hooks/useEfekKursor";
+import { bisa3D, BatasGalat3D } from "../components/three/dukungan";
+
+// three.js dimuat terpisah agar tidak memperberat bundel utama
+const LogoCatalys3D = lazy(() => import("../components/three/LogoCatalys3D"));
 
 // Akun demo: email dan kata sandi terisi otomatis sesuai peran, tidak bisa diubah.
 // Pengguna cukup memilih peran, sektor bisnis, dan paket langganan.
@@ -38,6 +42,14 @@ export default function Login() {
     navigate("/dashboard");
   };
 
+  const [pakai3D] = useState(bisa3D);
+  const logoStatis = (
+    <div className="relative flex flex-col items-center">
+      <span className="logo-halo" aria-hidden />
+      <img src="/logo-full.png" alt="Catalys - Smarter data. Stronger growth." className="logo-entrance w-56 sm:w-64 relative" />
+    </div>
+  );
+
   const label = "text-sm font-medium text-text";
   const terkunci = "h-11 w-full rounded-xl border border-gray-200 bg-gray-50 pl-4 pr-10 text-sm text-gray-600 cursor-not-allowed focus:outline-none";
 
@@ -46,10 +58,23 @@ export default function Login() {
       <div className="login-blob login-blob-a" />
       <div className="login-blob login-blob-b" />
       <div className="relative w-full max-w-lg flex flex-col items-center gap-5">
-        <div className="relative flex flex-col items-center">
-          <span className="logo-halo" aria-hidden />
-          <img src="/logo-full.png" alt="Catalys - Smarter data. Stronger growth." className="logo-entrance w-56 sm:w-64 relative" />
-        </div>
+        {pakai3D ? (
+          <BatasGalat3D cadangan={logoStatis}>
+            <Suspense fallback={<div className="h-52 w-72" />}>
+              <div className="relative flex flex-col items-center">
+                <div className="h-52 w-72 sm:h-56 sm:w-80" role="img" aria-label="Lambang Catalys">
+                  <LogoCatalys3D />
+                </div>
+                <div className="login-item -mt-2 text-center" style={{ animationDelay: "0.6s" }}>
+                  <p className="text-4xl font-light tracking-[0.45em] pl-[0.45em] text-primary">CATALYS</p>
+                  <p className="mt-1 text-[10px] font-semibold tracking-[0.28em] text-[#1e3a8a]">SMARTER DATA. STRONGER GROWTH.</p>
+                </div>
+              </div>
+            </Suspense>
+          </BatasGalat3D>
+        ) : (
+          logoStatis
+        )}
 
         <form onSubmit={masuk} className="login-item card-elegant w-full p-6 flex flex-col gap-5" style={{ animationDelay: "0.9s" }}>
           <div className="flex flex-col gap-2">

@@ -219,6 +219,30 @@ export type SupplierBahan = {
   harga: number;
   rating: number;
   minOrder: string;
+  foto: FotoToko;
+};
+
+// Foto ilustrasi jenis toko dari Wikimedia Commons (lisensi Creative Commons, wajib mencantumkan kredit)
+export type FotoToko = { src: string; penulis: string; lisensi: string; sumber: string };
+
+const COMMONS = "https://commons.wikimedia.org/wiki/File:";
+const FOTO_TOKO: Record<SupplierBahan["jenis"], FotoToko[]> = {
+  "Pasar tradisional": [
+    { src: "/supplier/pasar-1.jpg", penulis: "Nafisaacdr", lisensi: "CC BY 4.0", sumber: `${COMMONS}Penjual_sayur_pasar.jpg` },
+    { src: "/supplier/pasar-2.jpg", penulis: "Astari28", lisensi: "CC BY 4.0", sumber: `${COMMONS}Sayur_di_pasar_tanjung.jpg` },
+    { src: "/supplier/pasar-3.jpg", penulis: "Abdul Hanif Arromy", lisensi: "CC BY 4.0", sumber: `${COMMONS}Pasar_Raya_Padang_171751.jpg` },
+    { src: "/supplier/pasar-4.jpg", penulis: "Ivuvisual", lisensi: "CC BY-SA 4.0", sumber: `${COMMONS}Pasar_Tradisional_Jawa_Timur.jpg` },
+  ],
+  Grosir: [
+    { src: "/supplier/grosir-1.jpg", penulis: "Indonesiagood", lisensi: "CC BY 4.0", sumber: `${COMMONS}Suasana_Toko_Sembako_di_Pasar_Induk_Pare_Kediri.jpg` },
+    { src: "/supplier/grosir-2.jpg", penulis: "Indonesiagood", lisensi: "CC BY 4.0", sumber: `${COMMONS}Pasar_Induk_Pare_Kediri-5.jpg` },
+    { src: "/supplier/grosir-3.jpg", penulis: "Nela Fatimatun", lisensi: "CC BY 4.0", sumber: `${COMMONS}Penjual_sembako_di_pasar_tampak_samping.jpg` },
+  ],
+  Distributor: [
+    { src: "/supplier/distributor-1.jpg", penulis: "Ivuvisual", lisensi: "CC BY-SA 4.0", sumber: `${COMMONS}Penyimpanan_Kentang.jpg` },
+    { src: "/supplier/distributor-2.jpg", penulis: "CocoyAguilar", lisensi: "CC BY-SA 4.0", sumber: `${COMMONS}Philippines_worker.jpg` },
+    { src: "/supplier/distributor-3.jpg", penulis: "Encik Tekateki", lisensi: "CC BY 4.0", sumber: `${COMMONS}Warehouse_Interior_Storing_Batteries_in_Indonesia.jpg` },
+  ],
 };
 
 const NAMA_SUPPLIER = ["Sumber Makmur", "Jaya Abadi", "Sinar Baru", "Berkah Tani", "Maju Jaya", "Sentosa", "Mulia Sejahtera", "Barokah", "Karya Mandiri", "Cahaya Baru"];
@@ -239,6 +263,7 @@ export function supplierBahan(b: BahanBaku, kota: string): SupplierBahan[] {
       harga: Math.round((b.harga * w.indeksHarga * faktor * (0.96 + acak(seed + i * 7) * 0.08)) / 50) * 50,
       rating: Math.round((4.3 + acak(seed + i * 11) * 0.7) * 10) / 10,
       minOrder: jenis === "Distributor" ? `min. ${Math.max(1, Math.round(b.stokMin))} ${b.satuan}` : jenis === "Grosir" ? `min. ${Math.max(1, Math.round(b.stokMin / 3))} ${b.satuan}` : "tanpa minimum",
+      foto: FOTO_TOKO[jenis][(seed + i) % FOTO_TOKO[jenis].length],
     };
   }).sort((a, b2) => a.jarakKm - b2.jarakKm);
 }

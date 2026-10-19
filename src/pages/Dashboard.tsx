@@ -1,3 +1,4 @@
+import { lazy, Suspense, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ShieldCheck,
@@ -36,8 +37,21 @@ import AngkaBerjalan from "../components/AngkaBerjalan";
 import { useLaporan, useEntitasSendiri } from "../hooks/useLaporan";
 import { useAccount } from "../context/AccountContext";
 import { useInventory } from "../context/InventoryContext";
-import { formatRp, formatRpSingkat, TAHUN_BERJALAN } from "../data/laporan";
-import { FEATURES, lockedMessage, type FeatureKey } from "../config/access";
+import { useChartOfAccounts } from "../context/ChartOfAccountsContext";
+import { formatRp, formatRpSingkat, hitungLaporan, TAHUN_BERJALAN } from "../data/laporan";
+import { BRANCHES, FEATURES, lockedMessage, type FeatureKey } from "../config/access";
+import { bisa3D, BatasGalat3D } from "../components/three/dukungan";
+import type { TitikCabang } from "../components/three/PetaIndonesia3D";
+
+// three.js dimuat terpisah, hanya saat akun Induk membuka beranda
+const PetaIndonesia3D = lazy(() => import("../components/three/PetaIndonesia3D"));
+
+// Lokasi tiap cabang di peta (bujur, lintang) dan warna pilarnya
+const LOKASI_CABANG: Record<string, { lon: number; lat: number; warna: string }> = {
+  "Cabang Bogor": { lon: 106.8, lat: -6.6, warna: "#1e56c8" },
+  "Cabang Bandung": { lon: 107.61, lat: -6.91, warna: "#6366f1" },
+  "Cabang Surakarta": { lon: 110.82, lat: -7.57, warna: "#0ea5e9" },
+};
 
 const revenueMix = [
   { name: "Daring", value: 48 },
@@ -71,8 +85,29 @@ export default function Dashboard() {
   usePageTitle("Beranda");
   const lap = useLaporan(TAHUN_BERJALAN);
   const entitas = useEntitasSendiri();
-  const { canSee, canUse, quotaRemaining, sesi } = useAccount();
+  const { canSee, canUse, quotaRemaining, sesi, role } = useAccount();
   const { products } = useInventory();
+  const { accounts } = useChartOfAccounts();
+  const [pakai3D] = useState(bisa3D);
+  const [cabangDipilih, setCabangDipilih] = useState<string | null>(BRANCHES[0]);
+
+  // Kinerja tiap cabang untuk peta sebaran (khusus akun Induk)
+  const kinerjaCabang = useMemo(() => {
+    if (role !== "induk") return [];
+    const data = BRANCHES.map((nama) => {
+      const r = hitungLaporan(nama, TAHUN_BERJALAN, [], accounts).ringkasan;
+      return { nama, pendapatan: r.totalPendapatan, laba: r.labaBersih };
+    });
+    const total = data.reduce((s, d) => s + d.pendapatan, 0) || 1;
+    return data.map((d) => ({ ...d, porsi: d.pendapatan / total, margin: d.laba / (d.pendapatan || 1) }));
+  }, [role, accounts]);
+
+  const titikPeta: TitikCabang[] = kinerjaCabang.map((d) => ({
+    nama: d.nama,
+    ...LOKASI_CABANG[d.nama],
+    porsi: d.porsi,
+    label: formatRpSingkat(d.pendapatan),
+  }));
 
   const R = lap.ringkasan;
   const L = lap.ringkasanLalu;
@@ -232,6 +267,96 @@ export default function Dashboard() {
           </div>
         ))}
       </section>
+
+      {/* Peta sebaran cabang (khusus Induk) */}
+      {role === "induk" && kinerjaCabang.length > 0 && (
+        <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
+          <div className="lg:col-span-8 card-elegant p-5">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Peta Sebaran Cabang</h2>
+                <p className="text-sm text-gray-500">
+                  {pakai3D ? "Tinggi pilar = porsi pendapatan. Klik pilar untuk melihat rincian, atau lihat seluruh Indonesia." : "Porsi pendapatan tiap cabang."}
+                </p>
+              </div>
+              <span className="rounded-full bg-primary/5 px-3 py-1 text-xs font-medium text-primary">Indonesia</span>
+            </div>
+            {pakai3D ? (
+              <BatasGalat3D cadangan={<p className="py-16 text-center text-sm text-gray-500">Peta 3D tidak dapat ditampilkan di perangkat ini.</p>}>
+                <Suspense fallback={<div className="shimmer h-72 sm:h-80 rounded-xl bg-gray-100" />}>
+                  <div className="h-72 sm:h-80 rounded-xl bg-gradient-to-b from-[#f3f8fc] to-white">
+                    <PetaIndonesia3D titik={titikPeta} dipilih={cabangDipilih} onPilih={setCabangDipilih} />
+                  </div>
+                </Suspense>
+              </BatasGalat3D>
+            ) : (
+              <div className="space-y-3 py-4">
+                {kinerjaCabang.map((d) => (
+                  <div key={d.nama}>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-700">{d.nama}</span>
+                      <span className="font-semibold text-primary">{(d.porsi * 100).toFixed(0)}%</span>
+                    </div>
+                    <div className="mt-1 h-2 rounded-full bg-gray-100">
+                      <div className="h-2 rounded-full" style={{ width: `${d.porsi * 100}%`, background: LOKASI_CABANG[d.nama].warna }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="lg:col-span-4 card-elegant p-5 flex flex-col gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Kinerja Cabang {TAHUN_BERJALAN}</h2>
+              <p className="text-sm text-gray-500">Pilih cabang untuk menyorotnya di peta.</p>
+            </div>
+            {[...kinerjaCabang]
+              .sort((a, b) => b.pendapatan - a.pendapatan)
+              .map((d, i) => {
+                const aktif = cabangDipilih === d.nama;
+                return (
+                  <button
+                    key={d.nama}
+                    type="button"
+                    onClick={() => setCabangDipilih(d.nama)}
+                    aria-pressed={aktif}
+                    className={`rounded-xl border-2 p-3 text-left transition-all ${
+                      aktif ? "border-primary bg-white shadow-md" : "border-gray-100 bg-white/70 hover:border-gray-300"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-2 text-sm font-semibold text-primary">
+                        <span className="inline-block w-3 h-3 rounded-full" style={{ background: LOKASI_CABANG[d.nama].warna }} />
+                        {d.nama}
+                      </span>
+                      <span className="text-[11px] font-semibold text-gray-400">#{i + 1}</span>
+                    </div>
+                    <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                      <div>
+                        <p className="text-gray-400">Pendapatan</p>
+                        <p className="font-bold text-gray-900">{formatRpSingkat(d.pendapatan)}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400">Laba bersih</p>
+                        <p className="font-bold text-gray-900">{formatRpSingkat(d.laba)}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400">Porsi</p>
+                        <p className="font-bold text-gray-900">{(d.porsi * 100).toFixed(0)}%</p>
+                      </div>
+                    </div>
+                    {aktif && (
+                      <p className="mt-2 text-xs text-gray-500">
+                        Margin laba {(d.margin * 100).toFixed(1).replace(".", ",")}%
+                      </p>
+                    )}
+                  </button>
+                );
+              })}
+          </div>
+        </section>
+      )}
 
       {/* Baris grafik */}
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
