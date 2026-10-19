@@ -767,3 +767,33 @@ body {
     animation: none;
   }
 }
+
+/* Notifikasi bergaya notifikasi sistem (unduhan selesai) */
+.notif-sistem {
+  animation: notif-sistem-masuk 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.notif-sistem-keluar {
+  animation: notif-sistem-keluar 0.32s ease-in forwards;
+}
+@keyframes notif-sistem-masuk {
+  from {
+    opacity: 0;
+    transform: translateX(110%);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes notif-sistem-keluar {
+  to {
+    opacity: 0;
+    transform: translateX(110%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .notif-sistem,
+  .notif-sistem-keluar {
+    animation: none;
+  }
+}

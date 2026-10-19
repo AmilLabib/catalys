@@ -9,7 +9,7 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
       <PageTitleProvider>
-          <App />
+        <App />
       </PageTitleProvider>
     </BrowserRouter>
   </StrictMode>,

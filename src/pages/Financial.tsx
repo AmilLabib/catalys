@@ -55,7 +55,7 @@ import {
   formatTanggal,
 } from "../data/laporan";
 import { susunCalk, susunTabel, type Baris } from "../data/laporanTabel";
-import { eksporExcel, eksporPdf } from "../utils/eksporLaporan";
+import { eksporExcel, eksporPdf, namaFile } from "../utils/eksporLaporan";
 import { useAkses } from "../context/AksesContext";
 
 // palet grafik: hanya tone navy, terang-gelap berselang agar tetap terbedakan
@@ -81,7 +81,7 @@ export default function Financial() {
   const kunciAudit = alasanTerkunci("audit");
   const { punyaCabang, cabangList } = useAccount();
   const { tampilkanAkses } = useAkses();
-  const { toast } = useToast();
+  const { toast, notifUnduhan } = useToast();
   const sendiri = useEntitasSendiri();
 
   // periode laporan: default tahun berjalan (1 Januari s.d. hari ini)
@@ -108,7 +108,11 @@ export default function Financial() {
     try {
       if (jenis === "excel") await eksporExcel(lap, profile.namaUsaha);
       else await eksporPdf(lap, profile.namaUsaha);
-      toast(`Laporan ${periode.label} berhasil diekspor ke ${jenis === "excel" ? "Excel" : "PDF"}`);
+      notifUnduhan({
+        judul: "Unduhan Selesai",
+        pesan: `Laporan Keuangan ${periode.label} berhasil diunduh`,
+        berkas: [namaFile(lap, jenis === "excel" ? "xlsx" : "pdf")],
+      });
     } catch (e) {
       console.error(e);
       toast("Ekspor gagal. Coba lagi.", "peringatan");

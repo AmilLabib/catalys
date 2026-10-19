@@ -4,7 +4,7 @@ import type { Laporan } from "../data/laporan";
 import { labelPeriode } from "../data/laporan";
 import { susunCalk, susunTabel, type Baris } from "../data/laporanTabel";
 
-const namaFile = (lap: Laporan, ext: string) =>
+export const namaFile = (lap: Laporan, ext: string) =>
   `Laporan-Keuangan_${lap.entitas.replace(/\s+/g, "-")}_${lap.periode ? `${lap.periode.dari}_sd_${lap.periode.sampai}` : lap.tahun}.${ext}`;
 
 const rp = (v: number | undefined) => {
