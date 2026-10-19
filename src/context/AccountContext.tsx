@@ -46,6 +46,7 @@ type AccountState = {
   akun: string; // "induk" atau nama cabang yang sedang dibuka
   cabangList: CabangInfo[];
   kotaUsaha: string; // lokasi toko awal (sebelum dan sesudah menjadi Cabang Utama)
+  tokoPantau: string; // cabang yang persediaannya sedang dipantau dari akun induk
   plan: Plan; // satu langganan untuk seluruh usaha, dibeli akun induk
   profile: Profile;
   usage: Record<string, Pemakaian>; // kuota dihitung per akun
@@ -59,6 +60,7 @@ const DEFAULT_STATE: AccountState = {
   akun: "induk",
   cabangList: [],
   kotaUsaha: "Bogor",
+  tokoPantau: CABANG_UTAMA,
   plan: "gratis",
   profile: {
     nama: "Amil Labib",
@@ -82,6 +84,9 @@ type AccountCtx = Omit<AccountState, "usage"> & {
   usage: Pemakaian; // pemakaian kuota akun aktif
   kotaAkun: string; // kota akun aktif, untuk harga regional & supplier
   entitasSendiri: string; // entitas laporan akun aktif
+  // toko yang data operasionalnya (produk, stok, bahan baku) sedang dipakai/dilihat
+  tokoAktif: string;
+  pantauToko: (nama: string) => void;
   // masuk sebagai pemilik usaha (akun induk), sekaligus memilih paket
   login: (email: string, plan?: Plan) => void;
   pindahAkun: (akun: string) => void;
@@ -159,6 +164,9 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   const kotaAkun = role === "cabang" ? (state.cabangList.find((c) => c.nama === cabang)?.kota ?? state.kotaUsaha) : state.kotaUsaha;
   // tanpa cabang, induk = usaha tunggal (Konsolidasi berisi Cabang Utama saja)
   const entitasSendiri = role === "induk" ? KONSOLIDASI : cabang;
+  // cabang memakai tokonya sendiri; induk memantau salah satu cabang (awal: Cabang Utama)
+  const tokoAktif =
+    role === "cabang" ? cabang : state.cabangList.some((c) => c.nama === state.tokoPantau) ? state.tokoPantau : CABANG_UTAMA;
 
   // Usaha tanpa cabang: semua fitur peran terbuka di akun induk
   const canSee = (f: FeatureKey) => (role === "induk" && !punyaCabang) || FEATURES[f].roles.includes(role);
@@ -209,6 +217,8 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     usage: usageAkun,
     kotaAkun,
     entitasSendiri,
+    tokoAktif,
+    pantauToko: (nama) => setState((s) => ({ ...s, tokoPantau: nama })),
     login: (email, plan) =>
       setState((s) => ({ ...s, akun: "induk", plan: plan ?? s.plan, profile: email ? { ...s.profile, email } : s.profile })),
     pindahAkun: (akun) =>

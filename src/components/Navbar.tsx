@@ -12,7 +12,7 @@ export default function Navbar({ onMobileMenu }: Props) {
 
   return (
     <header className="sticky top-0 z-30 bg-white/70 backdrop-blur-xl border-b border-white/60 shadow-[0_1px_0_rgba(1,42,61,0.06)]">
-      <div className="max-w-[90rem] mx-auto px-4 md:px-8 py-3 flex items-center gap-4 relative">
+      <div className="max-w-[90rem] mx-auto px-3 md:px-8 py-3 flex items-center gap-2 sm:gap-4 relative">
         {/* Tombol menu mobile */}
         <div className="md:hidden">
           <button
@@ -26,12 +26,13 @@ export default function Navbar({ onMobileMenu }: Props) {
 
         {/* Judul halaman + pencarian */}
         <div className="flex-1 flex items-center justify-start gap-4 min-w-0">
-          <div className="min-w-0 shrink-0 max-w-[35vw] sm:max-w-[45vw]">
-            <h1 className="px-2 sm:px-8 text-[11px] sm:text-base md:text-lg font-extrabold text-primary leading-tight sm:truncate">
+          <div className="min-w-0 flex-1 sm:flex-none sm:shrink-0 sm:max-w-[45vw]">
+            <h1 className="px-1 sm:px-8 text-sm sm:text-base md:text-lg font-extrabold text-primary leading-tight truncate">
               {pageTitle}
             </h1>
           </div>
-          <div className="w-full max-w-xl relative min-w-0">
+          {/* pencarian disembunyikan di layar kecil agar judul & kontrol tidak berdesakan */}
+          <div className="hidden sm:block w-full max-w-xl relative min-w-0">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
               <Search className="w-4 h-4" />
             </span>
@@ -44,7 +45,7 @@ export default function Navbar({ onMobileMenu }: Props) {
         </div>
 
         {/* Kontrol kanan */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           <Notifikasi />
 
 

@@ -76,12 +76,12 @@ export default function AccountEditModal({
       <div className="relative bg-white rounded-2xl p-6 w-[min(100%,560px)] shadow-lg">
         <h3 className="text-lg font-semibold mb-4">{isEdit ? "Ubah Akun" : "Tambah Akun"}</h3>
         <div className="space-y-3">
-          <div className="grid grid-cols-3 gap-3">
-            <label className="col-span-1">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <label className="sm:col-span-1">
               <span className="text-sm text-gray-700">Kode</span>
               <input className={input} value={code} placeholder="1.1.1.08" onChange={(e) => setCode(e.target.value)} />
             </label>
-            <label className="col-span-2">
+            <label className="sm:col-span-2">
               <span className="text-sm text-gray-700">Nama akun</span>
               <input className={input} value={name} onChange={(e) => setName(e.target.value)} />
             </label>

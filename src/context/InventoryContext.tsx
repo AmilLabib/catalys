@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { BusinessSector } from "./BusinessSectorContext";
 import { useBusinessSector } from "./BusinessSectorContext";
+import { useAccount } from "./AccountContext";
+import { faktorStok, kunciToko } from "../utils/toko";
 
 export type InventoryItem = {
   id: string;
@@ -256,32 +258,34 @@ function normalisasi(items: InventoryItem[]) {
   }));
 }
 
-function muatSektor(sector: BusinessSector): InventoryItem[] {
+// Produk per toko (cabang). Cabang baru memakai katalog contoh yang sama dengan stok berbeda.
+function muatToko(sector: BusinessSector, toko: string): InventoryItem[] {
   try {
-    const raw = localStorage.getItem(`${STORAGE_PREFIX}${sector}`);
+    const raw = localStorage.getItem(kunciToko(STORAGE_PREFIX, sector, toko));
     if (raw) return normalisasi(JSON.parse(raw) as InventoryItem[]);
   } catch {
     // abaikan, pakai data contoh
   }
-  return normalisasi(seedForSector(sector));
+  return normalisasi(seedForSector(sector).map((p, i) => ({ ...p, qty: Math.round(p.qty * faktorStok(toko, i)) })));
 }
 
 export function InventoryProvider({ children }: { children: React.ReactNode }) {
   const { sector } = useBusinessSector();
+  const { tokoAktif } = useAccount();
+  const kunci = `${sector}|${tokoAktif}`;
 
   // Inventaris disimpan per sektor dalam satu objek, sehingga daftar produk
   // selalu terikat pada sektornya sendiri. Versi lama menyimpan daftar
   // aktif ke kunci sektor baru sesaat setelah sektor diganti (produk satu
   // sektor bisa tertulis ke sektor lain) dan menimpa semua data dengan data
   // contoh setiap kali halaman dimuat ulang.
-  const [store, setStore] = useState<Partial<Record<BusinessSector, InventoryItem[]>>>(
-    () => ({ [sector]: muatSektor(sector) }),
-  );
+  const [store, setStore] = useState<Record<string, InventoryItem[]>>(() => ({ [kunci]: muatToko(sector, tokoAktif) }));
 
   useEffect(() => {
     try {
-      for (const [s, items] of Object.entries(store)) {
-        localStorage.setItem(`${STORAGE_PREFIX}${s}`, JSON.stringify(items));
+      for (const [k, items] of Object.entries(store)) {
+        const [s, toko] = k.split("|");
+        localStorage.setItem(kunciToko(STORAGE_PREFIX, s, toko), JSON.stringify(items));
       }
     } catch {
       // abaikan kegagalan penyimpanan
@@ -290,10 +294,10 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
 
   // Sektor yang belum pernah dibuka dibaca langsung dari penyimpanan,
   // lalu masuk ke store pada perubahan pertama
-  const products = useMemo(() => store[sector] ?? muatSektor(sector), [store, sector]);
+  const products = useMemo(() => store[kunci] ?? muatToko(sector, tokoAktif), [store, kunci, sector, tokoAktif]);
 
   const ubah = (fn: (items: InventoryItem[]) => InventoryItem[]) =>
-    setStore((prev) => ({ ...prev, [sector]: fn(prev[sector] ?? muatSektor(sector)) }));
+    setStore((prev) => ({ ...prev, [kunci]: fn(prev[kunci] ?? muatToko(sector, tokoAktif)) }));
 
   const addProduct = (p: Omit<InventoryItem, "id">) => {
     const item: InventoryItem = {

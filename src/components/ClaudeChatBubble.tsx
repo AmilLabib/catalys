@@ -141,7 +141,7 @@ Jika user bertanya "ini halaman apa?" atau "bagaimana cara pakainya?", atau memi
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end">
       {/* Tooltip Bubble */}
       {!isOpen && showTooltip && (
         <div
@@ -177,7 +177,7 @@ Jika user bertanya "ini halaman apa?" atau "bagaimana cara pakainya?", atau memi
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 w-80 sm:w-96 h-[30rem] mb-4 flex flex-col overflow-hidden transition-all duration-300 transform origin-bottom-right">
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 w-[calc(100vw-2rem)] max-w-sm sm:w-96 h-[min(30rem,70vh)] mb-4 flex flex-col overflow-hidden transition-all duration-300 transform origin-bottom-right">
           {/* Header */}
           <div className="bg-primary text-white p-4 flex items-center justify-between">
             <div className="flex items-center gap-2">

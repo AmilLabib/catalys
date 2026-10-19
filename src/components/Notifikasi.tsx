@@ -249,7 +249,7 @@ export default function Notifikasi() {
     );
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative" data-tour="notifikasi">
       <button
         onClick={() => setBuka((b) => !b)}
         aria-label={`Notifikasi, ${belumDibaca.length} belum dibaca`}
@@ -265,7 +265,8 @@ export default function Notifikasi() {
       </button>
 
       {buka && (
-        <div className="notif-panel absolute right-0 mt-2 w-[22rem] max-w-[calc(100vw-2rem)] rounded-2xl border border-gray-100 bg-white shadow-2xl z-50 overflow-hidden">
+        // di HP panel selebar layar (lonceng bukan elemen paling kanan), di desktop menempel ke lonceng
+        <div className="notif-panel fixed inset-x-3 top-16 sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 sm:mt-2 sm:w-[22rem] rounded-2xl border border-gray-100 bg-white shadow-2xl z-50 overflow-hidden">
           <div className="flex items-center justify-between px-4 pt-4">
             <h3 className="text-xl font-bold text-gray-900">Notifikasi</h3>
             <button
@@ -294,7 +295,7 @@ export default function Notifikasi() {
             ))}
           </div>
 
-          <div className="notif-scroll max-h-[28rem] overflow-y-auto pb-2">
+          <div className="notif-scroll max-h-[min(28rem,65vh)] overflow-y-auto pb-2">
             {kelompok("Baru", baru)}
             {kelompok("Sebelumnya", lama)}
             {tampil.length === 0 && (

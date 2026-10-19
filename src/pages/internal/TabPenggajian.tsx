@@ -283,7 +283,7 @@ export default function TabPenggajian() {
       </section>
 
       {/* Kanan: kartu karyawan */}
-      <section className="lg:col-span-8 card-elegant p-6 min-w-0">
+      <section data-tour="sdm" className="lg:col-span-8 card-elegant p-6 min-w-0">
         <div className="flex items-center justify-between gap-2 mb-4">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">Karyawan & Progres KPI</h2>
@@ -437,7 +437,7 @@ export default function TabPenggajian() {
               return (
                 <>
                   {/* profil */}
-                  <div className="flex items-center gap-4">
+                  <div className="flex flex-wrap items-center gap-4">
                     <Foto k={dipilih} ukuran="w-20 h-20" className="ring-4 ring-[#e1ecf3]" />
                     <div className="min-w-0 flex-1">
                       <p className="text-xl font-bold text-gray-900">{dipilih.nama}</p>
@@ -483,7 +483,7 @@ export default function TabPenggajian() {
                                 <Trash2 className="w-4 h-4" />
                               </button>
                             </div>
-                            <div className="mt-2 grid grid-cols-4 gap-2">
+                            <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2">
                               {(
                                 [
                                   ["Capaian", "capaian"],
@@ -521,7 +521,7 @@ export default function TabPenggajian() {
                     <h4 className="flex items-center gap-2 font-semibold text-gray-900 mb-2">
                       <Wallet className="w-4 h-4 text-primary" /> Pengaturan Gaji
                     </h4>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       {(
                         [
                           ["Gaji pokok", "gajiPokok"],

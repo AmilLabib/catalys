@@ -40,12 +40,13 @@ const BAHAN_KOSONG: FormBahan = { nama: "", kategori: "", satuan: "kg", stok: 0,
 
 export default function PanelPersediaan() {
   const { bahan, resep, tambahBahan, ubahBahan, hapusBahan, tambahStok } = useBahanBaku();
-  const { kotaAkun } = useAccount();
+  const { kotaAkun, role, punyaCabang, cabangList, tokoAktif, pantauToko } = useAccount();
   const { entries, setEntries } = useJournal();
   const { accounts } = useChartOfAccounts();
   const { products } = useInventory();
   const { toast } = useToast();
-  const kota = kotaAkun;
+  // supplier mengikuti kota cabang yang sedang dipakai/dipantau
+  const kota = cabangList.find((c) => c.nama === tokoAktif)?.kota ?? kotaAkun;
 
   const [cari, setCari] = useState("");
   const [kategori, setKategori] = useState("semua");
@@ -132,6 +133,30 @@ export default function PanelPersediaan() {
 
   return (
     <div className="space-y-6">
+      {/* Akun induk memantau persediaan salah satu cabang (kantor pusat tidak menyimpan stok) */}
+      {role === "induk" && punyaCabang && (
+        <section className="card-elegant p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex items-center gap-2 text-sm font-semibold text-primary shrink-0">
+            <Store className="w-4 h-4" /> Pantau persediaan cabang
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {cabangList.map((c) => (
+              <button
+                key={c.nama}
+                onClick={() => pantauToko(c.nama)}
+                className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                  tokoAktif === c.nama ? "bg-primary text-white border-primary" : "bg-white text-gray-600 border-gray-200 hover:border-[#9cb2c1]"
+                }`}
+              >
+                {c.nama.replace("Cabang ", "")}
+                <span className={`ml-1.5 ${tokoAktif === c.nama ? "text-white/70" : "text-gray-400"}`}>{c.kota}</span>
+              </button>
+            ))}
+          </div>
+          <p className="sm:ml-auto text-xs text-gray-500">Perubahan stok di sini tercatat di cabang yang dipilih.</p>
+        </section>
+      )}
+
       {/* ---------- Daftar persediaan ---------- */}
       <section className="card-elegant p-6">
         <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
@@ -279,7 +304,7 @@ export default function PanelPersediaan() {
             </div>
           </div>
         </div>
-        <div className="mb-6">
+        <div className="mb-6" data-tour="peta-supplier">
           <Suspense fallback={<div className="shimmer h-80 rounded-2xl bg-gray-100" />}>
             <PetaSupplier
               kota={kota}

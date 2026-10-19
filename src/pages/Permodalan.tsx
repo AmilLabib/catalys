@@ -420,7 +420,7 @@ function Permodalan() {
                     </div>
                     <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ${STATUS_CLS[l.status]}`}>{l.status}</span>
                   </div>
-                  <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
+                  <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
                     <div>
                       <p className="text-[11px] text-gray-500">Pokok</p>
                       <p className="font-semibold">{formatRp(l.pokok)}</p>

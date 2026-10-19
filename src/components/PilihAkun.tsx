@@ -50,7 +50,7 @@ export default function PilihAkun() {
     }`;
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative" data-tour="pilih-akun">
       <button
         onClick={() => setBuka((b) => !b)}
         aria-haspopup="menu"

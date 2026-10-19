@@ -252,7 +252,7 @@ export default function Dashboard() {
       </div>
 
       {/* Baris KPI */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
+      <section data-tour="beranda-kpi" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
         {kpi.map(({ label, nilai, tren, catatan, icon: Icon, grad }) => (
           <div key={label} className={`card-gradient ${grad} p-5`}>
             <div className="relative flex items-center justify-between">
@@ -273,7 +273,7 @@ export default function Dashboard() {
 
       {/* Usaha belum punya cabang: ajakan membuka cabang pertama */}
       {role === "induk" && !punyaCabang && (
-        <section className="card-gradient grad-navy p-6 mb-6 flex flex-col md:flex-row md:items-center gap-5">
+        <section data-tour="buka-cabang" className="card-gradient grad-navy p-6 mb-6 flex flex-col md:flex-row md:items-center gap-5">
           <div className="relative w-14 h-14 shrink-0 rounded-2xl bg-white/15 ring-1 ring-white/25 flex items-center justify-center">
             <Store className="w-7 h-7" />
           </div>
@@ -295,7 +295,7 @@ export default function Dashboard() {
 
       {/* Peta sebaran cabang (khusus Induk) */}
       {role === "induk" && kinerjaCabang.length > 0 && (
-        <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
+        <section data-tour="peta-cabang" className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
           <div className="lg:col-span-8 card-elegant p-5">
             <div className="flex items-center justify-between mb-2">
               <div>

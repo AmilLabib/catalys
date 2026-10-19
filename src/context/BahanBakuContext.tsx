@@ -1,19 +1,23 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useBusinessSector, type BusinessSector } from "./BusinessSectorContext";
 import { bahanAwal, resepAwal, type BahanBaku, type ItemResep, type Resep } from "../data/bahanBaku";
+import { useAccount } from "./AccountContext";
+import { faktorStok, kunciToko } from "../utils/toko";
 
 const STORAGE_PREFIX = "catalys_bahan_v1_";
 
 type DataSektor = { bahan: BahanBaku[]; resep: Resep };
 
-function muat(sector: BusinessSector): DataSektor {
+// Bahan baku & resep per toko (cabang). Cabang baru: bahan contoh yang sama, stok berbeda.
+function muat(sector: BusinessSector, toko: string): DataSektor {
   try {
-    const raw = localStorage.getItem(`${STORAGE_PREFIX}${sector}`);
+    const raw = localStorage.getItem(kunciToko(STORAGE_PREFIX, sector, toko));
     if (raw) return JSON.parse(raw) as DataSektor;
   } catch {
     // abaikan, pakai data contoh
   }
-  return { bahan: bahanAwal(sector), resep: resepAwal(sector) };
+  const bahan = bahanAwal(sector).map((b, i) => ({ ...b, stok: Math.round(b.stok * faktorStok(toko, i) * 10) / 10 }));
+  return { bahan, resep: resepAwal(sector) };
 }
 
 type Ctx = {
@@ -36,18 +40,24 @@ const ctx = createContext<Ctx | undefined>(undefined);
 
 export function BahanBakuProvider({ children }: { children: React.ReactNode }) {
   const { sector } = useBusinessSector();
-  const [store, setStore] = useState<Partial<Record<BusinessSector, DataSektor>>>(() => ({ [sector]: muat(sector) }));
-  const data = useMemo(() => store[sector] ?? muat(sector), [store, sector]);
+  const { tokoAktif } = useAccount();
+  const kunci = `${sector}|${tokoAktif}`;
+  const [store, setStore] = useState<Record<string, DataSektor>>(() => ({ [kunci]: muat(sector, tokoAktif) }));
+  const data = useMemo(() => store[kunci] ?? muat(sector, tokoAktif), [store, kunci, sector, tokoAktif]);
 
   useEffect(() => {
     try {
-      for (const [s, d] of Object.entries(store)) localStorage.setItem(`${STORAGE_PREFIX}${s}`, JSON.stringify(d));
+      for (const [k, d] of Object.entries(store)) {
+        const [s, toko] = k.split("|");
+        localStorage.setItem(kunciToko(STORAGE_PREFIX, s, toko), JSON.stringify(d));
+      }
     } catch {
       // abaikan
     }
   }, [store]);
 
-  const ubah = (fn: (d: DataSektor) => DataSektor) => setStore((prev) => ({ ...prev, [sector]: fn(prev[sector] ?? muat(sector)) }));
+  const ubah = (fn: (d: DataSektor) => DataSektor) =>
+    setStore((prev) => ({ ...prev, [kunci]: fn(prev[kunci] ?? muat(sector, tokoAktif)) }));
   const ubahDaftar = (fn: (b: BahanBaku[]) => BahanBaku[]) => ubah((d) => ({ ...d, bahan: fn(d.bahan) }));
 
   const value: Ctx = {

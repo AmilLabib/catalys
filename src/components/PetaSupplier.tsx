@@ -11,6 +11,10 @@ import { KOORDINAT_KOTA } from "../utils/pricing";
 
 
 // Warna penanda per jenis toko, semuanya dari palet navy aplikasi
+// Ubin peta: CARTO bila VITE_CARTO_API_KEY diisi di .env (CARTO kini mewajibkan API key),
+// selain itu Esri Light Gray Canvas yang gratis tanpa key. Keduanya bernuansa abu-abu terang.
+const KUNCI_CARTO = (import.meta.env.VITE_CARTO_API_KEY as string | undefined)?.trim();
+
 const WARNA_JENIS: Record<SupplierBahan["jenis"], { bg: string; huruf: string }> = {
   "Pasar tradisional": { bg: "#9cb2c1", huruf: "P" },
   Grosir: { bg: "#2f6b8f", huruf: "G" },
@@ -71,11 +75,27 @@ export default function PetaSupplier({
   return (
     // isolate: panel Leaflet memakai z-index tinggi, jangan sampai menutupi popup/navbar aplikasi
     <div className="relative isolate z-0 h-80 overflow-hidden rounded-2xl ring-1 ring-gray-200">
-      <MapContainer key={kota} center={pusat} zoom={terjauh > 8 ? 11 : 12} scrollWheelZoom={false} className="h-full w-full">
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-        />
+      <MapContainer key={kota} center={pusat} zoom={terjauh > 8 ? 11 : 12} scrollWheelZoom={false} maxZoom={16} className="h-full w-full">
+        {KUNCI_CARTO ? (
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+            url={`https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=${KUNCI_CARTO}`}
+            subdomains="abcd"
+            maxZoom={16}
+          />
+        ) : (
+          <>
+            <TileLayer
+              attribution="Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors"
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+              maxZoom={16}
+            />
+            <TileLayer
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+              maxZoom={16}
+            />
+          </>
+        )}
         <Circle center={pusat} radius={terjauh * 1000} pathOptions={{ color: "#2f6b8f", weight: 1, dashArray: "4 6", fillColor: "#9cb2c1", fillOpacity: 0.08 }} />
         <Marker position={pusat} icon={ikonToko}>
           <Popup>

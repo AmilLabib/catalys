@@ -266,7 +266,7 @@ export default function Financial() {
         judul="Pencatatan Transaksi"
         teks="Catat penjualan dan pembelian lewat scan struk, atau input jurnal secara manual."
       />
-      <section className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+      <section data-tour="pencatatan" className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         <ScanStruk className="lg:col-span-3" />
         <div className="lg:col-span-2 card-elegant p-5 flex flex-col">
           <div className="flex items-start justify-between gap-2">
@@ -311,7 +311,7 @@ export default function Financial() {
       />
 
       {/* Pengaturan laporan: entitas, periode, ekspor */}
-      <section className="card-elegant p-4 grid grid-cols-1 lg:grid-cols-[auto_1fr_auto] gap-4 lg:items-end">
+      <section data-tour="pengaturan-laporan" className="card-elegant p-4 grid grid-cols-1 lg:grid-cols-[auto_1fr_auto] gap-4 lg:items-end">
         <div>
           <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Entitas laporan</p>
           {role === "induk" && !punyaCabang ? (
@@ -488,7 +488,7 @@ export default function Financial() {
 
       {/* ===== Bagian 3: analisis grafik ===== */}
       <PemisahBagian nomor={3} judul="Analisis Grafik" teks="Delapan sudut pandang atas kinerja, posisi keuangan, dan arus kas." />
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <section data-tour="grafik" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <KartuGrafik judul="Pendapatan, Beban, dan Laba Bulanan" sub="Batang = pendapatan & beban, garis = laba.">
           <ComposedChart data={lap.bulanan}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef2f6" />
@@ -555,7 +555,7 @@ export default function Financial() {
               ))}
             </Pie>
             <Tooltip formatter={(v: number) => formatRp(v)} />
-            <Legend wrapperStyle={{ fontSize: 11 }} layout="vertical" align="right" verticalAlign="middle" />
+            <Legend wrapperStyle={{ fontSize: 11 }} />
           </PieChart>
         </KartuGrafik>
 
@@ -608,7 +608,7 @@ export default function Financial() {
                 ))}
               </Pie>
               <Tooltip formatter={(v: number) => formatRp(v)} />
-              <Legend wrapperStyle={{ fontSize: 12 }} layout="vertical" align="right" verticalAlign="middle" />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
             </PieChart>
           </KartuGrafik>
         ) : (
@@ -643,15 +643,15 @@ export default function Financial() {
 // Pemisah antarbagian halaman: nomor, judul, dan garis pembatas
 function PemisahBagian({ nomor, judul, teks }: { nomor: number; judul: string; teks: string }) {
   return (
-    <div className="flex items-center gap-4 pt-4">
+    <div className="flex items-center gap-3 sm:gap-4 pt-4">
       <span className="grad-navy w-10 h-10 shrink-0 rounded-xl flex items-center justify-center text-base font-extrabold text-white shadow-md">
         {nomor}
       </span>
-      <div className="shrink-0">
+      <div className="min-w-0">
         <h2 className="text-lg font-bold text-primary leading-tight">{judul}</h2>
         <p className="text-xs text-gray-500">{teks}</p>
       </div>
-      <div className="h-px flex-1 bg-gradient-to-r from-primary/30 to-transparent" />
+      <div className="hidden sm:block h-px flex-1 min-w-[2rem] bg-gradient-to-r from-primary/30 to-transparent" />
     </div>
   );
 }
