@@ -1,9 +1,7 @@
-import { Link } from "react-router-dom";
 import { usePageTitleContext } from "../context/PageTitleContext";
 import { useDemoMode } from "../context/DemoModeContext";
-import { useAccount } from "../context/AccountContext";
 import { Menu, Bell, Search, PlayCircle } from "lucide-react";
-import { PLAN_LABEL } from "../config/access";
+import PilihAkun from "./PilihAkun";
 
 type Props = {
   onMobileMenu?: () => void;
@@ -12,14 +10,6 @@ type Props = {
 export default function Navbar({ onMobileMenu }: Props) {
   const { title: pageTitle } = usePageTitleContext();
   const { triggerDemo } = useDemoMode();
-  const { profile, role, cabang, plan } = useAccount();
-
-  const inisial = profile.nama
-    .split(" ")
-    .map((s) => s[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
 
   return (
     <header className="sticky top-0 z-30 bg-white/70 backdrop-blur-xl border-b border-white/60 shadow-[0_1px_0_rgba(1,42,61,0.06)]">
@@ -75,20 +65,7 @@ export default function Navbar({ onMobileMenu }: Props) {
             <span className="hidden sm:inline">Mode Demo</span>
           </button>
 
-          <Link
-            to="/profil"
-            className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
-          >
-            <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary">
-              {inisial}
-            </div>
-            <div className="leading-tight">
-              <p className="text-xs font-medium text-gray-800">{profile.nama}</p>
-              <p className="text-[11px] text-gray-500">
-                {role === "induk" ? "Induk" : cabang} · {PLAN_LABEL[plan]}
-              </p>
-            </div>
-          </Link>
+          <PilihAkun />
         </div>
       </div>
     </header>

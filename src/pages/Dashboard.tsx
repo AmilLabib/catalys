@@ -17,6 +17,8 @@ import {
   BarChart2,
   MessagesSquare,
   Lock,
+  Store,
+  Plus,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -39,21 +41,18 @@ import { useAccount } from "../context/AccountContext";
 import { useInventory } from "../context/InventoryContext";
 import { useChartOfAccounts } from "../context/ChartOfAccountsContext";
 import { formatRp, formatRpSingkat, hitungLaporan, TAHUN_BERJALAN } from "../data/laporan";
-import { BRANCHES, FEATURES, type FeatureKey } from "../config/access";
+import { FEATURES, type FeatureKey } from "../config/access";
+import { KOORDINAT_KOTA } from "../utils/pricing";
+import { useAkses } from "../context/AksesContext";
 import { bisa3D, BatasGalat3D } from "../components/three/dukungan";
 import type { TitikCabang } from "../components/three/PetaIndonesia3D";
 
 // three.js dimuat terpisah, hanya saat akun Induk membuka beranda
 const PetaIndonesia3D = lazy(() => import("../components/three/PetaIndonesia3D"));
 
-// Lokasi tiap cabang di peta (bujur, lintang) dan warna pilarnya
-const LOKASI_CABANG: Record<string, { lon: number; lat: number; warna: string }> = {
-  "Cabang Bogor": { lon: 106.8, lat: -6.6, warna: "#012a3d" },
-  "Cabang Surakarta": { lon: 110.82, lat: -7.57, warna: "#2f6b8f" },
-  "Cabang Medan": { lon: 98.67, lat: 3.59, warna: "#5487ab" },
-  "Cabang Makassar": { lon: 119.43, lat: -5.14, warna: "#7193ad" },
-  "Cabang Balikpapan": { lon: 116.83, lat: -1.24, warna: "#9cb2c1" },
-};
+// Warna pilar cabang di peta, berurutan dari tone navy
+const WARNA_CABANG = ["#012a3d", "#2f6b8f", "#5487ab", "#13577d", "#7193ad", "#9cb2c1", "#0a3f5e"];
+const warnaCabang = (i: number) => WARNA_CABANG[i % WARNA_CABANG.length];
 
 const revenueMix = [
   { name: "Daring", value: 48 },
@@ -87,29 +86,30 @@ export default function Dashboard() {
   usePageTitle("Beranda");
   const lap = useLaporan(TAHUN_BERJALAN);
   const entitas = useEntitasSendiri();
-  const { alasanTerkunci, quotaRemaining, sesi, role } = useAccount();
+  const { alasanTerkunci, quotaRemaining, sesi, role, cabangList, punyaCabang } = useAccount();
+  const { tampilkanAkses, bukaDialogCabang } = useAkses();
   const { products } = useInventory();
   const { accounts } = useChartOfAccounts();
   const [pakai3D] = useState(bisa3D);
-  const [cabangDipilih, setCabangDipilih] = useState<string | null>(BRANCHES[0]);
+  const [cabangDipilih, setCabangDipilih] = useState<string | null>(cabangList[0]?.nama ?? null);
 
   // Kinerja tiap cabang untuk peta sebaran (khusus akun Induk)
   const kinerjaCabang = useMemo(() => {
     if (role !== "induk") return [];
-    const data = BRANCHES.map((nama) => {
+    const data = cabangList.map(({ nama, kota }, i) => {
       const r = hitungLaporan(nama, TAHUN_BERJALAN, [], accounts).ringkasan;
-      return { nama, pendapatan: r.totalPendapatan, laba: r.labaBersih };
+      return { nama, kota, warna: warnaCabang(i), pendapatan: r.totalPendapatan, laba: r.labaBersih };
     });
     const total = data.reduce((s, d) => s + d.pendapatan, 0) || 1;
     return data.map((d) => ({ ...d, porsi: d.pendapatan / total, margin: d.laba / (d.pendapatan || 1) }));
-  }, [role, accounts]);
+  }, [role, accounts, cabangList]);
 
-  const titikPeta: TitikCabang[] = kinerjaCabang.map((d) => ({
-    nama: d.nama,
-    ...LOKASI_CABANG[d.nama],
-    porsi: d.porsi,
-    label: formatRpSingkat(d.pendapatan),
-  }));
+  // cabang di kota yang sama digeser sedikit agar pilarnya tidak bertumpuk
+  const titikPeta: TitikCabang[] = kinerjaCabang.map((d, i) => {
+    const [lat, lon] = KOORDINAT_KOTA[d.kota] ?? KOORDINAT_KOTA.Bogor;
+    const ke = kinerjaCabang.slice(0, i).filter((x) => x.kota === d.kota).length;
+    return { nama: d.nama, lat: lat - ke * 0.35, lon: lon + ke * 0.35, warna: d.warna, porsi: d.porsi, label: formatRpSingkat(d.pendapatan) };
+  });
 
   const R = lap.ringkasan;
   const L = lap.ringkasanLalu;
@@ -271,6 +271,28 @@ export default function Dashboard() {
         ))}
       </section>
 
+      {/* Usaha belum punya cabang: ajakan membuka cabang pertama */}
+      {role === "induk" && !punyaCabang && (
+        <section className="card-gradient grad-navy p-6 mb-6 flex flex-col md:flex-row md:items-center gap-5">
+          <div className="relative w-14 h-14 shrink-0 rounded-2xl bg-white/15 ring-1 ring-white/25 flex items-center justify-center">
+            <Store className="w-7 h-7" />
+          </div>
+          <div className="relative flex-1">
+            <h2 className="text-lg font-bold">Siap berkembang? Buka cabang pertama Anda</h2>
+            <p className="mt-1 text-sm text-white/75">
+              Saat ini semua fitur terbuka karena usaha Anda belum punya cabang. Setelah membuka cabang, toko ini menjadi Cabang Utama,
+              akun Induk memantau seluruh cabang, dan Anda bisa berpindah akun lewat menu di pojok kanan atas.
+            </p>
+          </div>
+          <button
+            onClick={bukaDialogCabang}
+            className="relative shrink-0 inline-flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-primary hover:bg-white/90"
+          >
+            <Plus className="w-4 h-4" /> Buka Cabang
+          </button>
+        </section>
+      )}
+
       {/* Peta sebaran cabang (khusus Induk) */}
       {role === "induk" && kinerjaCabang.length > 0 && (
         <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
@@ -301,7 +323,7 @@ export default function Dashboard() {
                       <span className="font-semibold text-primary">{(d.porsi * 100).toFixed(0)}%</span>
                     </div>
                     <div className="mt-1 h-2 rounded-full bg-gray-100">
-                      <div className="h-2 rounded-full" style={{ width: `${d.porsi * 100}%`, background: LOKASI_CABANG[d.nama].warna }} />
+                      <div className="h-2 rounded-full" style={{ width: `${d.porsi * 100}%`, background: d.warna }} />
                     </div>
                   </div>
                 ))}
@@ -330,7 +352,7 @@ export default function Dashboard() {
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="flex items-center gap-2 text-sm font-semibold text-primary">
-                        <span className="inline-block w-3 h-3 rounded-full" style={{ background: LOKASI_CABANG[d.nama].warna }} />
+                        <span className="inline-block w-3 h-3 rounded-full" style={{ background: d.warna }} />
                         {d.nama}
                       </span>
                       <span className="text-[11px] font-semibold text-gray-400">#{i + 1}</span>
@@ -438,9 +460,9 @@ export default function Dashboard() {
           const kunci = alasanTerkunci(key);
           const terkunci = !!kunci;
           return (
-            <div key={key} className={`card-elegant hover-lift p-5 flex flex-col ${terkunci ? "opacity-70" : ""}`}>
+            <div key={key} className="card-elegant hover-lift p-5 flex flex-col">
               <div className="flex items-center gap-3 mb-4">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${terkunci ? "bg-gray-200 text-gray-500" : "chip-gradient"}`}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center chip-gradient">
                   <Icon className="w-5 h-5" />
                 </div>
                 <h3 className="text-base font-semibold text-gray-900">{def.label}</h3>
@@ -454,21 +476,14 @@ export default function Dashboard() {
                 ))}
               </div>
               <div className="mt-auto pt-5">
-                {kunci?.jenis === "paket" ? (
-                  <Link
-                    to="/profil?tab=paket"
+                {kunci ? (
+                  <button
+                    onClick={() => tampilkanAkses(key)}
                     title={kunci.pesan}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gray-100 px-4 py-2.5 text-xs font-semibold text-gray-500 hover:bg-gray-200"
+                    className="btn-gradient inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold"
                   >
-                    <Lock className="w-3.5 h-3.5" /> {kunci.pesan}
-                  </Link>
-                ) : kunci ? (
-                  <span
-                    title={kunci.pesan}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gray-100 px-4 py-2.5 text-xs font-semibold text-gray-500 cursor-not-allowed"
-                  >
-                    <Lock className="w-3.5 h-3.5" /> {kunci.pesan}
-                  </span>
+                    {cta} <Lock className="w-3.5 h-3.5 text-white/70" />
+                  </button>
                 ) : (
                   <Link
                     to={def.path}

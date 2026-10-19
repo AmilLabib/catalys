@@ -4,24 +4,11 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { BahanBaku, SupplierBahan } from "../data/bahanBaku";
 import { formatRp } from "../data/laporan";
+import { KOORDINAT_KOTA } from "../utils/pricing";
 
 // Peta sebaran supplier di sekitar toko. Posisi supplier adalah data contoh:
 // diletakkan sejauh `jarakKm` dari pusat kota dengan arah yang tetap per nama toko.
 
-const PUSAT_KOTA: Record<string, [number, number]> = {
-  "Jakarta Selatan": [-6.261, 106.81],
-  Bogor: [-6.595, 106.806],
-  Bandung: [-6.917, 107.619],
-  Semarang: [-6.99, 110.42],
-  Surakarta: [-7.566, 110.823],
-  Yogyakarta: [-7.797, 110.37],
-  Surabaya: [-7.257, 112.752],
-  Malang: [-7.98, 112.63],
-  Denpasar: [-8.65, 115.216],
-  Medan: [3.595, 98.672],
-  Makassar: [-5.147, 119.432],
-  Balikpapan: [-1.265, 116.831],
-};
 
 // Warna penanda per jenis toko, semuanya dari palet navy aplikasi
 const WARNA_JENIS: Record<SupplierBahan["jenis"], { bg: string; huruf: string }> = {
@@ -70,7 +57,7 @@ export default function PetaSupplier({
   titik: TitikSupplier[];
   onBeli: (bahan: BahanBaku, supplier: SupplierBahan) => void;
 }) {
-  const pusat = PUSAT_KOTA[kota] ?? PUSAT_KOTA.Bogor;
+  const pusat = KOORDINAT_KOTA[kota] ?? KOORDINAT_KOTA.Bogor;
   const terjauh = Math.max(2, ...titik.map((t) => t.supplier.jarakKm));
   const ikon = useMemo(
     () => ({

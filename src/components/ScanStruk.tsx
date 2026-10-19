@@ -23,7 +23,7 @@ const ScanStruk = forwardRef<ScanStrukHandle, { hanyaPembelian?: boolean; classN
   { hanyaPembelian = false, className = "" },
   ref,
 ) {
-  const { canUse, quotaLimit, quotaRemaining, pakaiKuota } = useAccount();
+  const { canUse, quotaLimit, quotaRemaining, pakaiKuota, role } = useAccount();
   const { toast } = useToast();
   const { entries, setEntries } = useJournal();
   const { accounts } = useChartOfAccounts();
@@ -274,8 +274,12 @@ const ScanStruk = forwardRef<ScanStrukHandle, { hanyaPembelian?: boolean; classN
           </button>
         </div>
       ) : (
-        <Link to="/profil?tab=paket" className="mt-4 flex flex-1 items-center justify-center gap-2 rounded-xl bg-gray-100 px-4 py-3 text-sm font-medium text-gray-500">
-          <Lock className="w-4 h-4" /> {lockedMessage("pro")}
+        <Link
+          to={role === "induk" ? "/profil?tab=paket" : "#"}
+          className="mt-4 flex flex-1 items-center justify-center gap-2 rounded-xl bg-gray-100 px-4 py-3 text-center text-sm font-medium text-gray-500"
+        >
+          <Lock className="w-4 h-4 shrink-0" /> {lockedMessage("pro")}
+          {role === "cabang" && ". Minta akun Induk untuk upgrade."}
         </Link>
       )}
       <canvas ref={canvasRef} className="hidden" />

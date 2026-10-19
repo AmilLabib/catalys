@@ -4,16 +4,18 @@ import { Lock, type LucideIcon } from "lucide-react";
 
 // Navigasi tab berbentuk pil (gaya yang sama dengan halaman UMKM Berkembang).
 // Latar tab aktif bergeser halus ke tab yang dipilih. Tab dengan `terkunci`
-// tampil abu-abu dan tidak bisa dipilih; isinya menjadi keterangan.
+// tampil normal dengan ikon gembok; klik memanggil `onTerkunci` (mis. popup penjelasan).
 export default function PillTabs<K extends string>({
   tabs,
   active,
   onChange,
+  onTerkunci,
   className = "",
 }: {
   tabs: readonly { key: K; label: string; icon?: LucideIcon; terkunci?: string }[];
   active: K;
   onChange: (k: K) => void;
+  onTerkunci?: (k: K) => void;
   className?: string;
 }) {
   const idIndikator = useId();
@@ -29,11 +31,12 @@ export default function PillTabs<K extends string>({
               role="tab"
               aria-disabled
               title={t.terkunci}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 bg-gray-50 text-sm font-medium text-gray-400 cursor-not-allowed"
+              onClick={() => onTerkunci?.(t.key)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gray-300 bg-white/80 text-sm font-medium text-gray-700 hover:bg-white"
             >
               {Icon && <Icon className="w-4 h-4" />}
               {t.label}
-              <Lock className="w-3.5 h-3.5" />
+              <Lock className="w-3.5 h-3.5 text-gray-400" />
             </button>
           );
         return (

@@ -1,41 +1,48 @@
 import { useMemo } from "react";
 import { useAccount } from "../context/AccountContext";
 import { useChartOfAccounts } from "../context/ChartOfAccountsContext";
-import { useJournal } from "../context/JournalContext";
+import { entitasJurnal, useJournal } from "../context/JournalContext";
 import { hitungLaporan, hitungLaporanRentang, KONSOLIDASI } from "../data/laporan";
 import type { JournalEntry } from "../context/JournalContext";
-
-const TANPA_JURNAL: JournalEntry[] = [];
 
 // Entitas laporan milik akun yang sedang masuk: induk melihat konsolidasi,
 // cabang melihat cabangnya sendiri.
 export function useEntitasSendiri() {
-  const { role, cabang } = useAccount();
-  return role === "induk" ? KONSOLIDASI : cabang;
+  return useAccount().entitasSendiri;
+}
+
+// Jurnal pengguna yang masuk ke laporan entitas: konsolidasi memuat semua jurnal,
+// laporan cabang hanya jurnal yang dicatat cabang itu.
+function useJurnalEntitas(target: string) {
+  const { entries } = useJournal();
+  return useMemo(
+    () => (target === KONSOLIDASI ? entries : entries.filter((e: JournalEntry) => entitasJurnal(e) === target)),
+    [entries, target],
+  );
 }
 
 export function useLaporan(tahun: number, entitas?: string) {
-  const sendiri = useEntitasSendiri();
-  const target = entitas ?? sendiri;
-  const { entries } = useJournal();
+  const { entitasSendiri, cabangList } = useAccount();
+  const target = entitas ?? entitasSendiri;
+  const jurnal = useJurnalEntitas(target);
   const { accounts } = useChartOfAccounts();
-  // Jurnal yang diinput pengguna hanya masuk ke laporan entitasnya sendiri
-  const jurnal = target === sendiri ? entries : TANPA_JURNAL;
   return useMemo(
     () => hitungLaporan(target, tahun, jurnal, accounts),
-    [target, tahun, jurnal, accounts],
+    // daftar cabang mengubah angka konsolidasi
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [target, tahun, jurnal, accounts, cabangList.length],
   );
 }
 
 // Laporan untuk rentang tanggal bebas (format YYYY-MM-DD)
 export function useLaporanRentang(dari: string, sampai: string, entitas?: string) {
-  const sendiri = useEntitasSendiri();
-  const target = entitas ?? sendiri;
-  const { entries } = useJournal();
+  const { entitasSendiri, cabangList } = useAccount();
+  const target = entitas ?? entitasSendiri;
+  const jurnal = useJurnalEntitas(target);
   const { accounts } = useChartOfAccounts();
-  const jurnal = target === sendiri ? entries : TANPA_JURNAL;
   return useMemo(
     () => hitungLaporanRentang(target, dari, sampai, jurnal, accounts),
-    [target, dari, sampai, jurnal, accounts],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [target, dari, sampai, jurnal, accounts, cabangList.length],
   );
 }

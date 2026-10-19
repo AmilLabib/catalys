@@ -1,44 +1,31 @@
 import { lazy, Suspense, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Building2, Store, Lock, Check } from "lucide-react";
+import { Lock, Check } from "lucide-react";
 import { useAccount } from "../context/AccountContext";
 import { SECTOR_OPTIONS, useBusinessSector, type BusinessSector } from "../context/BusinessSectorContext";
-import { BRANCHES, PLANS, PLAN_LABEL, type Plan, type Role } from "../config/access";
+import { PLANS, PLAN_LABEL, type Plan } from "../config/access";
 import { useEfekKursor } from "../hooks/useEfekKursor";
 import { bisa3D, BatasGalat3D } from "../components/three/dukungan";
 
 // three.js dimuat terpisah agar tidak memperberat bundel utama
 const LogoCatalys3D = lazy(() => import("../components/three/LogoCatalys3D"));
 
-// Akun demo: email dan kata sandi terisi otomatis sesuai peran, tidak bisa diubah.
-// Pengguna cukup memilih peran, sektor bisnis, dan paket langganan.
+// Akun demo pemilik usaha: email dan kata sandi terisi otomatis, tidak bisa diubah.
+// Pengguna selalu masuk ke akun induk; akun cabang dibuka lewat menu pindah akun.
 const KATA_SANDI_DEMO = "catalysdemo";
-
-function emailDemo(role: Role, cabang: string) {
-  if (role === "induk") return "induk@catalys.id";
-  return `${cabang.toLowerCase().replace(/\s+/g, ".")}@catalys.id`;
-}
-
-const ROLE_OPSI: { value: Role; label: string; desc: string; Icon: typeof Store }[] = [
-  { value: "induk", label: "Induk", desc: "Kantor pusat", Icon: Building2 },
-  { value: "cabang", label: "Cabang", desc: "Outlet / toko", Icon: Store },
-];
+const EMAIL_DEMO = "pemilik@catalys.id";
 
 export default function Login() {
   const navigate = useNavigate();
   useEfekKursor();
   const { sector, setSector } = useBusinessSector();
-  const { login, setPlan, plan: planTersimpan } = useAccount();
-  const [role, setRole] = useState<Role>("induk");
-  const [cabang, setCabang] = useState(BRANCHES[0]);
+  const { login, plan: planTersimpan } = useAccount();
   const [plan, setPlanPilihan] = useState<Plan>(planTersimpan);
-
-  const email = emailDemo(role, cabang);
+  const email = EMAIL_DEMO;
 
   const masuk = (e: React.FormEvent) => {
     e.preventDefault();
-    login(role, cabang, email);
-    setPlan(plan);
+    login(email, plan);
     navigate("/dashboard");
   };
 
@@ -77,38 +64,9 @@ export default function Login() {
         )}
 
         <form onSubmit={masuk} className="login-item card-elegant w-full p-6 flex flex-col gap-5" style={{ animationDelay: "0.9s" }}>
-          <div className="flex flex-col gap-2">
-            <span className={label}>Masuk sebagai</span>
-            <div className="grid grid-cols-2 gap-3">
-              {ROLE_OPSI.map(({ value, label: l, desc, Icon }) => (
-                <button
-                  type="button"
-                  key={value}
-                  onClick={() => setRole(value)}
-                  aria-pressed={role === value}
-                  className={`flex items-center gap-3 rounded-2xl border-2 px-4 py-3 text-left transition-all ${
-                    role === value ? "border-primary bg-white shadow-md" : "border-gray-200 bg-white/70 hover:border-gray-300"
-                  }`}
-                >
-                  <Icon className={`w-5 h-5 ${role === value ? "text-primary" : "text-gray-400"}`} />
-                  <span>
-                    <span className="block text-sm font-semibold text-primary">{l}</span>
-                    <span className="block text-xs text-gray-500">{desc}</span>
-                  </span>
-                </button>
-              ))}
-            </div>
-            {role === "cabang" && (
-              <select
-                value={cabang}
-                onChange={(e) => setCabang(e.target.value)}
-                className="h-11 rounded-xl border border-gray-200 px-3 bg-white text-sm focus:outline-none focus:ring-4 focus:ring-primary/10"
-              >
-                {BRANCHES.map((b) => (
-                  <option key={b}>{b}</option>
-                ))}
-              </select>
-            )}
+          <div className="rounded-2xl bg-primary/5 px-4 py-3 text-sm text-gray-600">
+            <p className="font-semibold text-primary">Masuk sebagai pemilik usaha</p>
+            <p className="text-xs mt-0.5">Akun induk. Setelah membuka cabang, pindah ke akun cabang lewat menu di pojok kanan atas.</p>
           </div>
 
           <label className="flex flex-col gap-2">

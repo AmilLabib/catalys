@@ -5,7 +5,6 @@ import {
   ringkasPasar,
   cariWilayah,
   WILAYAH,
-  WILAYAH_CABANG,
   type MarketPricing,
   type Kompetitor,
 } from "../utils/pricing";
@@ -103,10 +102,10 @@ export default function SmartPricing() {
   const [gambar, setGambar] = useState<string | undefined>();
   const [skenario, setSkenario] = useState<Skenario>("normal");
   const [memuat, setMemuat] = useState(false);
-  const { cabang, pakaiKuota, quotaRemaining } = useAccount();
+  const { kotaAkun, pakaiKuota, quotaRemaining } = useAccount();
   const { toast } = useToast();
   // wilayah default mengikuti lokasi cabang
-  const [kota, setKota] = useState(WILAYAH_CABANG[cabang] ?? "Bogor");
+  const [kota, setKota] = useState(kotaAkun);
   const [radius, setRadius] = useState(10);
   const [tampilSemua, setTampilSemua] = useState(false);
   const [hasilCari, setHasilCari] = useState<{ semua: Kompetitor[]; kota: string } | null>(null);

@@ -33,7 +33,8 @@ import { useLaporan } from "../hooks/useLaporan";
 import { useInventory } from "../context/InventoryContext";
 import { useBusinessSector } from "../context/BusinessSectorContext";
 import { formatRp, formatRpSingkat, TAHUN_BERJALAN, KONSOLIDASI, LABA_RUGI } from "../data/laporan";
-import { hitungGaji, karyawanSektor, ulasanAwal, type Topik } from "../data/internal";
+import { hitungGaji, karyawanSektor, ulasanAwal, unitKerja, type Topik } from "../data/internal";
+import { useAccount } from "../context/AccountContext";
 
 type Tingkat = "tinggi" | "sedang" | "rendah";
 type Temuan = { judul: string; detail: string; saran: string; tingkat: Tingkat };
@@ -109,6 +110,8 @@ function DataDriven() {
   const lap = useLaporan(TAHUN_BERJALAN, KONSOLIDASI);
   const { products } = useInventory();
   const { sector } = useBusinessSector();
+  const { cabangList } = useAccount();
+  const unitAudit = unitKerja(cabangList.map((c) => c.nama)).join("|");
 
   // ---------- Keuangan ----------
   const keuangan = useMemo(() => {
@@ -208,7 +211,7 @@ function DataDriven() {
 
   // ---------- Penggajian ----------
   const penggajian = useMemo(() => {
-    const k = karyawanSektor(sector);
+    const k = karyawanSektor(sector, unitAudit.split("|"));
     const temuan: Temuan[] = [];
     const absen = 100 - k.reduce((s, x) => s + x.kehadiran, 0) / k.length;
     const rendah = k.filter((x) => x.kehadiran < 90);
@@ -245,7 +248,7 @@ function DataDriven() {
     });
     const grafik = k.map((x) => ({ nama: x.nama.split(" ")[0], kehadiran: x.kehadiran, kinerja: x.kinerja }));
     return { temuan, grafik };
-  }, [sector, lap]);
+  }, [sector, lap, unitAudit]);
 
   // ---------- Pemasaran ----------
   const pemasaran = useMemo(() => {

@@ -44,7 +44,7 @@ import QuotaBadge from "../components/QuotaBadge";
 import AngkaBerjalan from "../components/AngkaBerjalan";
 import ScanStruk from "../components/ScanStruk";
 import {
-  ENTITAS,
+  daftarEntitas,
   KONSOLIDASI,
   LABA_RUGI,
   NERACA,
@@ -56,7 +56,7 @@ import {
 } from "../data/laporan";
 import { susunCalk, susunTabel, type Baris } from "../data/laporanTabel";
 import { eksporExcel, eksporPdf } from "../utils/eksporLaporan";
-import { BRANCHES, pesanPeran } from "../config/access";
+import { useAkses } from "../context/AksesContext";
 
 // palet grafik: hanya tone navy, terang-gelap berselang agar tetap terbedakan
 const WARNA = ["#012a3d", "#5487ab", "#13577d", "#9cb2c1", "#2f6b8f", "#c6d8e4", "#0a3f5e", "#7193ad", "#3d7ea3", "#adc4d3"];
@@ -79,6 +79,8 @@ export default function Financial() {
   const navigate = useNavigate();
   const { role, alasanTerkunci, pakaiKuota, quotaRemaining, profile } = useAccount();
   const kunciAudit = alasanTerkunci("audit");
+  const { punyaCabang, cabangList } = useAccount();
+  const { tampilkanAkses } = useAkses();
   const { toast } = useToast();
   const sendiri = useEntitasSendiri();
 
@@ -162,12 +164,12 @@ export default function Financial() {
   const { accounts } = useChartOfAccounts();
   const jurnalTerbaru = semuaJurnal.slice(0, 4);
   const kontribusiCabang = useMemo(() => {
-    if (entitas !== KONSOLIDASI) return [];
-    return BRANCHES.map((b) => ({
+    if (entitas !== KONSOLIDASI || !punyaCabang) return [];
+    return cabangList.map(({ nama: b }) => ({
       name: b,
       value: hitungLaporanRentang(b, periode.dari, periode.sampai, [], accounts).ringkasan.totalPendapatan,
     }));
-  }, [entitas, periode.dari, periode.sampai, accounts]);
+  }, [entitas, periode.dari, periode.sampai, accounts, punyaCabang, cabangList]);
 
   // ---------- Insight ----------
   const rasio = {
@@ -308,11 +310,17 @@ export default function Financial() {
       <section className="card-elegant p-4 grid grid-cols-1 lg:grid-cols-[auto_1fr_auto] gap-4 lg:items-end">
         <div>
           <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Entitas laporan</p>
-          {role === "induk" ? (
+          {role === "induk" && !punyaCabang ? (
+            <span className="inline-flex items-center gap-2 rounded-xl border bg-white px-3 py-2 text-sm shadow-sm" title="Pilihan per cabang muncul setelah membuka cabang">
+              <Building2 className="w-4 h-4 text-gray-500" />
+              <span className="font-semibold text-primary">Seluruh usaha</span>
+              <span className="text-xs text-gray-400">(belum ada cabang)</span>
+            </span>
+          ) : role === "induk" ? (
             <label className="inline-flex items-center gap-2 rounded-xl border bg-white px-3 py-2 text-sm shadow-sm">
               <Building2 className="w-4 h-4 text-gray-500" />
               <select value={entitas} onChange={(e) => setEntitas(e.target.value)} className="bg-transparent font-semibold text-primary outline-none">
-                {ENTITAS.map((x) => (
+                {daftarEntitas().map((x) => (
                   <option key={x} value={x}>
                     {x === KONSOLIDASI ? "Konsolidasi (semua cabang)" : x}
                   </option>
@@ -322,7 +330,7 @@ export default function Financial() {
           ) : (
             <span
               className="inline-flex items-center gap-2 rounded-xl border bg-gray-50 px-3 py-2 text-sm text-gray-500 cursor-not-allowed"
-              title={pesanPeran(["induk"])}
+              title="Laporan cabang lain dan konsolidasi hanya bisa dilihat dari akun Induk"
             >
               <Building2 className="w-4 h-4" /> {sendiri}
               <Lock className="w-3.5 h-3.5" />
@@ -356,9 +364,13 @@ export default function Financial() {
             </button>
           </div>
           {sisaEkspor === 0 && (
-            <Link to="/profil?tab=paket" className="mt-1 block text-xs font-medium text-primary underline">
-              Kuota habis. Upgrade untuk ekspor tanpa batas.
-            </Link>
+            role === "induk" ? (
+              <Link to="/profil?tab=paket" className="mt-1 block text-xs font-medium text-primary underline">
+                Kuota habis. Upgrade untuk ekspor tanpa batas.
+              </Link>
+            ) : (
+              <p className="mt-1 text-xs text-gray-500">Kuota akun ini habis. Minta akun Induk untuk upgrade.</p>
+            )
           )}
         </div>
       </section>
@@ -445,29 +457,14 @@ export default function Financial() {
               <p className="text-sm text-gray-500">Rasio keuangan utama dan apa artinya bagi usaha Anda.</p>
             </div>
           </div>
-          {!kunciAudit ? (
-            <button
-              onClick={() => navigate("/data-driven")}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-95"
-            >
-              <Gauge className="w-4 h-4" /> Cek Performa <ArrowRight className="w-4 h-4" />
-            </button>
-          ) : kunciAudit.jenis === "paket" ? (
-            <Link
-              to="/profil?tab=paket"
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-500"
-              title={kunciAudit.pesan}
-            >
-              <Lock className="w-4 h-4" /> Cek Performa · {kunciAudit.pesan}
-            </Link>
-          ) : (
-            <span
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-500 cursor-not-allowed"
-              title={kunciAudit.pesan}
-            >
-              <Lock className="w-4 h-4" /> Cek Performa · {kunciAudit.pesan}
-            </span>
-          )}
+          <button
+            onClick={() => (kunciAudit ? tampilkanAkses("audit") : navigate("/data-driven"))}
+            title={kunciAudit?.pesan}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-95"
+          >
+            <Gauge className="w-4 h-4" /> Cek Performa
+            {kunciAudit ? <Lock className="w-3.5 h-3.5 text-white/70" /> : <ArrowRight className="w-4 h-4" />}
+          </button>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {insight.map((x) => (
@@ -598,7 +595,7 @@ export default function Financial() {
           </BarChart>
         </KartuGrafik>
 
-        {entitas === KONSOLIDASI ? (
+        {entitas === KONSOLIDASI && punyaCabang ? (
           <KartuGrafik judul="Kontribusi Pendapatan per Cabang" sub="Porsi tiap cabang terhadap pendapatan konsolidasi.">
             <PieChart>
               <Pie data={kontribusiCabang} dataKey="value" nameKey="name" innerRadius={55} outerRadius={90} paddingAngle={3}>

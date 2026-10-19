@@ -187,7 +187,9 @@ function TabAkun() {
 }
 
 function TabPaket() {
-  const { plan, setPlan } = useAccount();
+  const { plan, setPlan, role, pindahAkun } = useAccount();
+  // langganan berlaku untuk seluruh usaha dan hanya bisa dibeli dari akun induk
+  const bisaUbah = role === "induk";
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -202,8 +204,28 @@ function TabPaket() {
   return (
     <Card
       title="Paket Langganan"
-      desc="Mode demo: memilih paket langsung mengaktifkannya tanpa pembayaran."
+      desc={
+        bisaUbah
+          ? "Satu langganan untuk seluruh usaha (induk dan semua cabang). Mode demo: memilih paket langsung mengaktifkannya tanpa pembayaran."
+          : "Cabang memakai paket langganan akun Induk."
+      }
     >
+      {!bisaUbah && (
+        <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl bg-primary/5 px-4 py-3">
+          <p className="text-sm text-gray-700">
+            <b className="text-primary">Dikelola akun Induk.</b> Hanya pemilik usaha di akun Induk yang dapat membeli atau mengubah paket.
+          </p>
+          <button
+            onClick={() => {
+              pindahAkun("induk");
+              toast("Sekarang di akun Induk", "info");
+            }}
+            className="shrink-0 rounded-full btn-gradient px-4 py-2 text-sm font-semibold"
+          >
+            Pindah ke akun Induk
+          </button>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {PLANS.map((p) => {
           const aktif = p.key === plan;
@@ -231,15 +253,15 @@ function TabPaket() {
                 ))}
               </ul>
               <button
-                disabled={aktif}
+                disabled={aktif || !bisaUbah}
                 onClick={() => pilih(p.key)}
                 className={`mt-5 rounded-full px-4 py-2.5 text-sm font-semibold ${
-                  aktif
+                  aktif || !bisaUbah
                     ? "bg-gray-100 text-gray-500 cursor-default"
                     : "bg-primary text-white hover:opacity-95"
                 }`}
               >
-                {aktif ? "Paket Aktif" : "Pilih Paket"}
+                {aktif ? "Paket Aktif" : bisaUbah ? "Pilih Paket" : "Dikelola akun Induk"}
               </button>
             </div>
           );

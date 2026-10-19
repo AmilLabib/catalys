@@ -1,6 +1,7 @@
 // Aturan akses fitur: peran akun (induk/cabang) dan paket langganan.
-// Semua fitur tetap terlihat. Fitur di luar peran atau di luar paket
-// ditampilkan abu-abu dengan keterangan peran atau paket yang dibutuhkan.
+// Usaha yang belum punya cabang memakai semua fitur dari akun induk.
+// Setelah membuka cabang, fitur dibagi per peran. Semua menu tetap terlihat;
+// fitur di luar peran atau paket memunculkan popup peringatan saat dibuka.
 
 export type Role = "induk" | "cabang";
 export type Plan = "gratis" | "pro" | "bisnis";
@@ -116,6 +117,7 @@ export const PLANS: PlanDef[] = [
       "Smart Pricing 30 pencarian per bulan",
       "Permodalan",
       "Konsultasi 1x per bulan",
+      "Buka hingga 2 cabang",
     ],
   },
   {
@@ -129,9 +131,18 @@ export const PLANS: PlanDef[] = [
       "Audit Berbasis Data",
       "Manajemen Internal",
       "Konsultasi 3x per bulan",
+      "Cabang tanpa batas",
     ],
   },
 ];
 
-// Cabang tersebar di beberapa pulau
-export const BRANCHES = ["Cabang Bogor", "Cabang Surakarta", "Cabang Medan", "Cabang Makassar", "Cabang Balikpapan"];
+// ---------- Cabang ----------
+
+// Toko awal otomatis menjadi cabang ini saat usaha membuka cabang pertamanya
+export const CABANG_UTAMA = "Cabang Utama";
+export const KANTOR_PUSAT = "Kantor Pusat";
+
+// Jumlah cabang baru yang boleh dibuka (di luar Cabang Utama). null = tanpa batas
+export const BATAS_CABANG: Record<Plan, number | null> = { gratis: 0, pro: 2, bisnis: null };
+
+export type CabangInfo = { nama: string; kota: string; dibuka: string };

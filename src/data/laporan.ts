@@ -8,7 +8,7 @@
 
 import type { Account } from "../context/ChartOfAccountsContext";
 import type { JournalEntry } from "../context/JournalContext";
-import { BRANCHES } from "../config/access";
+import { CABANG_UTAMA } from "../config/access";
 
 export type PosDef = { key: string; label: string; prefixes: string[] };
 
@@ -155,17 +155,38 @@ export type Laporan = {
 };
 
 export const KONSOLIDASI = "Konsolidasi";
-export const ENTITAS = [KONSOLIDASI, ...BRANCHES];
 
-// Porsi tiap cabang terhadap angka konsolidasi
-const PORSI: Record<string, number> = {
-  [KONSOLIDASI]: 1,
-  [BRANCHES[0]]: 0.28,
-  [BRANCHES[1]]: 0.2,
-  [BRANCHES[2]]: 0.2,
-  [BRANCHES[3]]: 0.17,
-  [BRANCHES[4]]: 0.15,
-};
+// Daftar cabang aktif diatur oleh AccountContext (cabang bisa dibuka kapan saja).
+// Tanpa cabang, "Konsolidasi" berarti usaha tunggal milik induk = Cabang Utama.
+let DAFTAR_CABANG: string[] = [];
+
+export function aturDaftarCabang(daftar: string[]) {
+  if (daftar.join("|") === DAFTAR_CABANG.join("|")) return;
+  DAFTAR_CABANG = [...daftar];
+  cacheModel.clear();
+}
+
+export function daftarEntitas() {
+  return [KONSOLIDASI, ...DAFTAR_CABANG];
+}
+
+// Skala data contoh tiap cabang. Cabang Utama = skala penuh toko awal; cabang baru
+// 30–55% darinya (stabil per nama). Konsolidasi = jumlah semua cabang.
+function porsiCabang(nama: string) {
+  if (nama === CABANG_UTAMA) return 1;
+  const h = Array.from(nama).reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 17);
+  return 0.3 + (h % 1000) / 4000;
+}
+
+// Nama entitas untuk judul laporan
+export function labelEntitas(entitas: string) {
+  return entitas === KONSOLIDASI && !DAFTAR_CABANG.length ? "Seluruh usaha" : entitas;
+}
+
+function porsiEntitas(entitas: string) {
+  if (entitas !== KONSOLIDASI) return porsiCabang(entitas);
+  return DAFTAR_CABANG.length ? DAFTAR_CABANG.reduce((t, c) => t + porsiCabang(c), 0) : 1;
+}
 
 export const NAMA_BULAN = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 
@@ -253,7 +274,7 @@ function modelDasar(porsi: number): Record<number, Snapshot> {
 
 const cacheModel = new Map<string, Record<number, Snapshot>>();
 function model(entitas: string) {
-  if (!cacheModel.has(entitas)) cacheModel.set(entitas, modelDasar(PORSI[entitas] ?? 1));
+  if (!cacheModel.has(entitas)) cacheModel.set(entitas, modelDasar(porsiEntitas(entitas)));
   return cacheModel.get(entitas)!;
 }
 
@@ -468,7 +489,7 @@ export function hitungLaporan(
 
   return {
     tahun,
-    entitas,
+    entitas: labelEntitas(entitas),
     berjalan,
     bulanBerjalan: bulanMaks,
     neraca: cur.neraca,
@@ -734,7 +755,7 @@ export function hitungLaporanRentang(
 
   return {
     tahun: Number(sampai.slice(0, 4)),
-    entitas,
+    entitas: labelEntitas(entitas),
     berjalan: false,
     bulanBerjalan: 12, // pembanding sudah periode yang sama tahun lalu, tidak perlu disetahunkan
     neraca: cur.neraca,

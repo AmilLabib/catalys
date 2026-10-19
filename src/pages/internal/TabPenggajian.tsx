@@ -4,6 +4,7 @@ import { useBusinessSector } from "../../context/BusinessSectorContext";
 import { useJournal } from "../../context/JournalContext";
 import { useChartOfAccounts } from "../../context/ChartOfAccountsContext";
 import { useToast } from "../../context/ToastContext";
+import { useAccount } from "../../context/AccountContext";
 import BrandIcon from "../../components/BrandIcon";
 import AngkaBerjalan from "../../components/AngkaBerjalan";
 import Modal from "../../components/Modal";
@@ -13,7 +14,7 @@ import {
   progresKpi,
   skorKaryawan,
   POTONGAN_BPJS,
-  UNIT_KERJA,
+  unitKerja,
   type Karyawan,
   type KpiKaryawan,
 } from "../../data/internal";
@@ -83,7 +84,7 @@ function BatangProgres({ nilai, tebal = "h-2" }: { nilai: number; tebal?: string
   );
 }
 
-const KUNCI_SIMPAN = (sector: string) => `catalys_karyawan_v1_${sector}`;
+const KUNCI_SIMPAN = (sector: string) => `catalys_karyawan_v2_${sector}`;
 
 export default function TabPenggajian() {
   const { sector } = useBusinessSector();
@@ -91,16 +92,26 @@ export default function TabPenggajian() {
   const { accounts } = useChartOfAccounts();
   const { toast } = useToast();
 
+  const { cabangList } = useAccount();
+  const UNIT_KERJA = unitKerja(cabangList.map((c) => c.nama));
+
   // data karyawan bisa diubah (KPI, gaji), jadi disimpan per sektor di browser
-  const [karyawan, setKaryawan] = useState<Karyawan[]>(() => {
+  const [tersimpan, setKaryawan] = useState<Karyawan[]>(() => {
     try {
       const raw = localStorage.getItem(KUNCI_SIMPAN(sector));
       if (raw) return JSON.parse(raw);
     } catch {
       // abaikan
     }
-    return karyawanSektor(sector);
+    return [];
   });
+  // gabungkan dengan karyawan contoh unit yang baru dibuka; unit yang tidak ada lagi diabaikan
+  const karyawan = useMemo(() => {
+    const contoh = karyawanSektor(sector, UNIT_KERJA);
+    const ada = new Set(tersimpan.map((k) => k.id));
+    return [...tersimpan.filter((k) => UNIT_KERJA.includes(k.unit)), ...contoh.filter((k) => !ada.has(k.id))];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tersimpan, sector, UNIT_KERJA.join("|")]);
   useEffect(() => {
     try {
       localStorage.setItem(KUNCI_SIMPAN(sector), JSON.stringify(karyawan));
@@ -144,8 +155,8 @@ export default function TabPenggajian() {
 
   // ---------- ubah data satu karyawan ----------
   const ubah = (id: string, perubahan: Partial<Karyawan>) =>
-    setKaryawan((ks) =>
-      ks.map((k) => {
+    setKaryawan(() =>
+      karyawan.map((k) => {
         if (k.id !== id) return k;
         const baru = { ...k, ...perubahan };
         return { ...baru, target: progresKpi(baru.kpi) };

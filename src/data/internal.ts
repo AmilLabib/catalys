@@ -1,5 +1,5 @@
 // Data contoh Manajemen Internal (inventaris, penggajian, pemasaran) per sektor.
-import { BRANCHES } from "../config/access";
+import { CABANG_UTAMA, KANTOR_PUSAT } from "../config/access";
 import type { BusinessSector } from "../context/BusinessSectorContext";
 
 export type Supplier = { name: string; materials: string[] };
@@ -113,35 +113,26 @@ export type Karyawan = {
   kpi: KpiKaryawan[];
 };
 
-export const KANTOR_PUSAT = "Kantor Pusat";
-export const UNIT_KERJA = [KANTOR_PUSAT, ...BRANCHES];
+export { KANTOR_PUSAT };
 
-// [nama, jenis kelamin, unit (indeks UNIT_KERJA), peran (indeks; -1..-3 = jabatan kantor pusat)]
-const ORANG: [string, "L" | "P", number, number][] = [
-  ["Hendra Gunawan", "L", 0, -1],
-  ["Ratna Dewi", "P", 0, -2],
-  ["Yusuf Hidayat", "L", 0, -3],
-  ["Budi Santoso", "L", 1, 0],
-  ["Siti Aminah", "P", 1, 1],
-  ["Andi Wijaya", "L", 1, 2],
-  ["Rina Lestari", "P", 2, 0],
-  ["Dimas Prakoso", "L", 2, 3],
-  ["Maya Sari", "P", 3, 0],
-  ["Fajar Nugraha", "L", 3, 2],
-  ["Lia Kurniawati", "P", 4, 1],
-  ["Rahmat Hasan", "L", 4, 3],
-  ["Nur Aisyah", "P", 5, 0],
-  ["Agus Setiawan", "L", 5, 2],
-];
+// Unit kerja: tanpa cabang hanya toko awal; setelah ada cabang = Kantor Pusat + semua cabang
+export function unitKerja(cabang: string[]) {
+  return cabang.length ? [KANTOR_PUSAT, ...cabang] : [CABANG_UTAMA];
+}
+
+const NAMA_L = ["Budi Santoso", "Andi Wijaya", "Dimas Prakoso", "Fajar Nugraha", "Rahmat Hasan", "Agus Setiawan", "Hendra Gunawan", "Yusuf Hidayat", "Rizky Pratama", "Bayu Saputra", "Arief Kurniawan", "Galih Ramadhan", "Wahyu Firmansyah", "Ilham Maulana", "Taufik Hidayat", "Eko Prasetyo"];
+const NAMA_P = ["Siti Aminah", "Rina Lestari", "Maya Sari", "Lia Kurniawati", "Nur Aisyah", "Ratna Dewi", "Dewi Anggraini", "Putri Ayu", "Fitri Handayani", "Indah Permata", "Sari Wulandari", "Anisa Rahma", "Yuni Astuti", "Nadia Safitri", "Melati Kusuma", "Tari Oktaviani"];
 const JABATAN_PUSAT = ["Manajer Operasional", "Staf Keuangan", "Staf SDM"];
-const FOTO_L = [32, 45, 12, 75, 22, 36, 51, 68];
-const FOTO_P = [44, 65, 21, 33, 57, 79, 12, 90];
+const FOTO_L = [32, 45, 12, 75, 22, 36, 51, 68, 15, 83, 41, 57, 3, 27, 64, 90];
+const FOTO_P = [44, 65, 21, 33, 57, 79, 12, 90, 8, 26, 49, 71, 3, 37, 62, 85];
 
 // Angka semu yang stabil per indeks agar data contoh selalu sama
 const semu = (i: number, k: number) => {
   const x = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453;
   return x - Math.floor(x);
 };
+const hashTeks = (t: string) => Array.from(t).reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+const slug = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
 // Kehadiran dihitung dari jam masuk/pulang, sisanya dari KPI
 export function progresKpi(kpi: KpiKaryawan[]) {
@@ -166,41 +157,49 @@ function kpiAwal(i: number, pusat: boolean, hadir: number): KpiKaryawan[] {
   return daftar.map((x, j) => ({ ...x, id: `kpi-${i + 1}-${j + 1}` }));
 }
 
-export function karyawanSektor(sector: BusinessSector): Karyawan[] {
+// Karyawan contoh per unit kerja: Kantor Pusat 3 staf, Cabang Utama 4 orang, cabang lain 3 orang.
+// ID stabil per unit sehingga data yang sudah diubah pengguna tetap cocok saat cabang bertambah.
+export function karyawanSektor(sector: BusinessSector, units: string[] = [CABANG_UTAMA]): Karyawan[] {
   const peran = SEKTOR[sector].peran;
-  const telepon = (i: number) => `08${12 + (i % 8)}-${String(1000 + Math.floor(semu(i, 1) * 8999))}-${String(1000 + Math.floor(semu(i, 2) * 8999))}`;
-  const jam = (i: number): [string, string] => {
-    if (i % 7 === 6) return ["", ""]; // belum hadir
-    const m = Math.round(-12 + semu(i, 3) * 30); // menit relatif terhadap 08:00
-    const masuk = `0${7 + (m >= 0 ? 1 : 0)}:${String((60 + m) % 60).padStart(2, "0")}`;
-    return [masuk, i % 3 === 1 ? "" : `17:${String(Math.floor(semu(i, 4) * 25)).padStart(2, "0")}`];
-  };
-  let l = 0;
-  let p = 0;
-  return ORANG.map(([nama, jk, unit, peranIdx], i) => {
-    const pusat = peranIdx < 0;
-    const hadir = Math.round(82 + semu(i, 5) * 18);
-    const kpi = kpiAwal(i, pusat, hadir);
-    const gajiPokok = pusat ? [6_500_000, 4_800_000, 4_600_000][-peranIdx - 1] : [4_200_000, 3_600_000, 3_400_000, 3_300_000][peranIdx];
-    const [masuk, pulang] = jam(i);
-    return {
-      id: `kry-${i + 1}`,
-      nama,
-      jabatan: pusat ? JABATAN_PUSAT[-peranIdx - 1] : peran[peranIdx],
-      unit: UNIT_KERJA[unit],
-      foto: `https://randomuser.me/api/portraits/${jk === "L" ? "men" : "women"}/${jk === "L" ? FOTO_L[l++ % FOTO_L.length] : FOTO_P[p++ % FOTO_P.length]}.jpg`,
-      gajiPokok,
-      tunjangan: Math.round(gajiPokok * 0.13 / 50_000) * 50_000,
-      lembur: Math.round((semu(i, 6) * 500_000) / 50_000) * 50_000,
-      kinerja: Math.round(70 + semu(i, 7) * 26),
-      kehadiran: hadir,
-      target: progresKpi(kpi),
-      telepon: telepon(i),
-      masuk,
-      pulang,
-      kpi,
-    };
+  const hasil: Karyawan[] = [];
+  const dipakai = new Set<string>();
+  units.forEach((unit) => {
+    const pusat = unit === KANTOR_PUSAT;
+    const jumlah = pusat ? 3 : unit === CABANG_UTAMA ? 4 : 3;
+    const hu = hashTeks(unit);
+    for (let j = 0; j < jumlah; j++) {
+      const i = (hu % 997) + j * 13;
+      const pria = (hu + j) % 2 === 0;
+      const kolam = pria ? NAMA_L : NAMA_P;
+      let n = (hu + j * 5) % kolam.length;
+      while (dipakai.has(kolam[n])) n = (n + 1) % kolam.length;
+      dipakai.add(kolam[n]);
+      const hadir = Math.round(82 + semu(i, 5) * 18);
+      const kpi = kpiAwal(i, pusat, hadir);
+      const gajiPokok = pusat ? [6_500_000, 4_800_000, 4_600_000][j] : [4_200_000, 3_600_000, 3_400_000, 3_300_000][j % 4];
+      const belumHadir = semu(i, 8) < 0.12;
+      const m = Math.round(-12 + semu(i, 3) * 30); // menit relatif terhadap 08:00
+      const foto = pria ? FOTO_L[(hu + j) % FOTO_L.length] : FOTO_P[(hu + j) % FOTO_P.length];
+      hasil.push({
+        id: `kry-${slug(unit)}-${j + 1}`,
+        nama: kolam[n],
+        jabatan: pusat ? JABATAN_PUSAT[j] : peran[j % 4],
+        unit,
+        foto: `https://randomuser.me/api/portraits/${pria ? "men" : "women"}/${foto}.jpg`,
+        gajiPokok,
+        tunjangan: Math.round((gajiPokok * 0.13) / 50_000) * 50_000,
+        lembur: Math.round((semu(i, 6) * 500_000) / 50_000) * 50_000,
+        kinerja: Math.round(70 + semu(i, 7) * 26),
+        kehadiran: hadir,
+        target: progresKpi(kpi),
+        telepon: `08${12 + (i % 8)}-${String(1000 + Math.floor(semu(i, 1) * 8999))}-${String(1000 + Math.floor(semu(i, 2) * 8999))}`,
+        masuk: belumHadir ? "" : `0${7 + (m >= 0 ? 1 : 0)}:${String((60 + m) % 60).padStart(2, "0")}`,
+        pulang: belumHadir || j % 3 === 1 ? "" : `17:${String(Math.floor(semu(i, 4) * 25)).padStart(2, "0")}`,
+        kpi,
+      });
+    }
   });
+  return hasil;
 }
 
 // Potongan iuran BPJS bagian pekerja: Kesehatan 1%, JHT 2%, JP 1% dari gaji pokok + tunjangan tetap

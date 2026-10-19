@@ -19,7 +19,7 @@ import {
   Tag,
 } from "lucide-react";
 import { useAccount } from "../context/AccountContext";
-import { useToast } from "../context/ToastContext";
+import { useAkses } from "../context/AksesContext";
 import { FEATURES, type FeatureKey } from "../config/access";
 
 type Props = {
@@ -62,10 +62,8 @@ export default function Sidebar({ mobileOpen = false, onClose }: Props) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
-  // Tooltip memakai posisi fixed supaya tidak terpotong oleh area scroll nav
-  const [tip, setTip] = useState<{ text: string; x: number; y: number } | null>(null);
   const { alasanTerkunci } = useAccount();
-  const { toast } = useToast();
+  const { tampilkanAkses } = useAkses();
 
   function item(key: FeatureKey, Icon: typeof Home, compact: boolean, indikator: string) {
     const def = FEATURES[key];
@@ -86,27 +84,24 @@ export default function Sidebar({ mobileOpen = false, onClose }: Props) {
       </span>
     );
 
+    // fitur di luar akun/paket tetap tampil normal; klik memunculkan popup penjelasan
     if (kunci) {
       return (
-        <div
+        <button
           key={key}
-          className={`${base} text-white/35 cursor-not-allowed select-none`}
-          aria-disabled="true"
-          onMouseEnter={(e) => {
-            const r = e.currentTarget.getBoundingClientRect();
-            setTip({ text: kunci.pesan, x: r.right + 8, y: r.top + r.height / 2 });
-          }}
-          onMouseLeave={() => setTip(null)}
-          onClick={(e) => {
-            // di layar sentuh tidak ada hover, jadi tampilkan sebagai notifikasi
-            e.stopPropagation();
-            toast(kunci.pesan, "info");
-          }}
+          type="button"
+          onClick={() => tampilkanAkses(key)}
+          title={kunci.pesan}
+          className={`${base} w-full text-white/75 hover:bg-white/10 hover:text-white`}
         >
-          <Icon className="w-5 h-5 flex-shrink-0" />
+          <Icon className="relative w-5 h-5 flex-shrink-0" />
           {label}
-          {!compact && <Lock className="w-3.5 h-3.5 ml-auto" />}
-        </div>
+          {compact ? (
+            <Lock className="absolute top-1 right-1 w-3 h-3 text-white/60" />
+          ) : (
+            <Lock className="w-3.5 h-3.5 ml-auto text-white/50" />
+          )}
+        </button>
       );
     }
 
@@ -179,14 +174,6 @@ export default function Sidebar({ mobileOpen = false, onClose }: Props) {
 
   return (
     <>
-      {tip && (
-        <div
-          className="hidden md:block fixed z-[1100] -translate-y-1/2 whitespace-nowrap rounded-md bg-gray-900 px-2.5 py-1.5 text-[11px] font-medium text-white shadow-lg pointer-events-none"
-          style={{ left: tip.x, top: tip.y }}
-        >
-          {tip.text}
-        </div>
-      )}
       {/* Sidebar desktop */}
       <aside
         className={`sidebar-root sidebar-gelap hidden md:flex flex-col h-screen sticky top-0 px-4 py-4 transition-all duration-300 ease-in-out ${

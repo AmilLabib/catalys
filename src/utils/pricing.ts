@@ -23,13 +23,20 @@ export const WILAYAH: Wilayah[] = [
   { kota: "Balikpapan", provinsi: "Kalimantan Timur", indeksHarga: 1.15, kecamatan: ["Balikpapan Kota", "Balikpapan Selatan", "Balikpapan Utara"] },
 ];
 
-// Lokasi default tiap cabang
-export const WILAYAH_CABANG: Record<string, string> = {
-  "Cabang Bogor": "Bogor",
-  "Cabang Surakarta": "Surakarta",
-  "Cabang Medan": "Medan",
-  "Cabang Makassar": "Makassar",
-  "Cabang Balikpapan": "Balikpapan",
+// Koordinat pusat kota (lintang, bujur) untuk peta
+export const KOORDINAT_KOTA: Record<string, [number, number]> = {
+  "Jakarta Selatan": [-6.261, 106.81],
+  Bogor: [-6.595, 106.806],
+  Bandung: [-6.917, 107.619],
+  Semarang: [-6.99, 110.42],
+  Surakarta: [-7.566, 110.823],
+  Yogyakarta: [-7.797, 110.37],
+  Surabaya: [-7.257, 112.752],
+  Malang: [-7.98, 112.63],
+  Denpasar: [-8.65, 115.216],
+  Medan: [3.595, 98.672],
+  Makassar: [-5.147, 119.432],
+  Balikpapan: [-1.265, 116.831],
 };
 
 export type Kompetitor = {

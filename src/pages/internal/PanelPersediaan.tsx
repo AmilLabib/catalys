@@ -21,7 +21,6 @@ import {
   type BahanBaku,
   type SupplierBahan,
 } from "../../data/bahanBaku";
-import { WILAYAH_CABANG } from "../../utils/pricing";
 import { formatRp } from "../../data/laporan";
 
 const STATUS = {
@@ -41,12 +40,12 @@ const BAHAN_KOSONG: FormBahan = { nama: "", kategori: "", satuan: "kg", stok: 0,
 
 export default function PanelPersediaan() {
   const { bahan, resep, tambahBahan, ubahBahan, hapusBahan, tambahStok } = useBahanBaku();
-  const { role, cabang } = useAccount();
+  const { kotaAkun } = useAccount();
   const { entries, setEntries } = useJournal();
   const { accounts } = useChartOfAccounts();
   const { products } = useInventory();
   const { toast } = useToast();
-  const kota = role === "cabang" ? (WILAYAH_CABANG[cabang] ?? "Bogor") : "Bogor";
+  const kota = kotaAkun;
 
   const [cari, setCari] = useState("");
   const [kategori, setKategori] = useState("semua");

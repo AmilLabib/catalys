@@ -3,7 +3,7 @@ import type { Account } from "./ChartOfAccountsContext";
 import { useChartOfAccounts } from "./ChartOfAccountsContext";
 import { useAccount } from "./AccountContext";
 import { buatJurnalContoh } from "../data/jurnalContoh";
-import { KONSOLIDASI } from "../data/laporan";
+import { CABANG_UTAMA, KANTOR_PUSAT } from "../config/access";
 
 export type JournalLine = {
   id: string;
@@ -19,14 +19,18 @@ export type JournalEntry = {
   lines: JournalLine[];
   // jurnal contoh: rincian angka model laporan, tidak diposting ulang
   contoh?: boolean;
+  // entitas pencatat: nama cabang atau Kantor Pusat. Kosong = Cabang Utama (data sebelum ada cabang)
+  entitas?: string;
 };
+
+export const entitasJurnal = (e: JournalEntry) => e.entitas ?? CABANG_UTAMA;
 
 const STORAGE_KEY = "journals_v1";
 
 type JournalCtx = {
   /** jurnal yang diinput pengguna (tersimpan) */
   entries: JournalEntry[];
-  /** jurnal pengguna + jurnal contoh, terurut dari terbaru */
+  /** jurnal pengguna milik akun aktif + jurnal contoh, terurut dari terbaru */
   semuaJurnal: JournalEntry[];
   addEntry: (e: JournalEntry) => void;
   // expose the React state setter so consumers can update entries with a functional update
@@ -62,15 +66,31 @@ export function JournalProvider({ children }: { children: React.ReactNode }) {
   }, [entries]);
 
   // Jurnal contoh 3 tahun untuk entitas akun yang sedang masuk
-  const { role, cabang } = useAccount();
-  const entitas = role === "induk" ? KONSOLIDASI : cabang;
-  const jurnalContoh = useMemo(() => buatJurnalContoh(entitas, accounts), [entitas, accounts]);
+  const { role, cabang, punyaCabang, entitasSendiri, cabangList } = useAccount();
+  const jurnalContoh = useMemo(
+    () => buatJurnalContoh(entitasSendiri, accounts),
+    // daftar cabang memengaruhi angka konsolidasi
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [entitasSendiri, accounts, cabangList.length],
+  );
+  // akun cabang hanya melihat jurnalnya sendiri; akun induk melihat semua
   const semuaJurnal = useMemo(
-    () => [...entries, ...jurnalContoh].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)),
-    [entries, jurnalContoh],
+    () =>
+      [...entries.filter((e) => role === "induk" || entitasJurnal(e) === cabang), ...jurnalContoh].sort((a, b) =>
+        a.date < b.date ? 1 : a.date > b.date ? -1 : 0,
+      ),
+    [entries, jurnalContoh, role, cabang],
   );
 
-  const addEntry = (e: JournalEntry) => setEntriesState((s) => [e, ...s]);
+  // jurnal baru diberi label entitas akun yang mencatatnya
+  const pencatat = role === "cabang" ? cabang : punyaCabang ? KANTOR_PUSAT : CABANG_UTAMA;
+  const setEntries: React.Dispatch<React.SetStateAction<JournalEntry[]>> = (ubah) =>
+    setEntriesState((lama) => {
+      const baru = typeof ubah === "function" ? ubah(lama) : ubah;
+      return baru.map((e) => (e.entitas || lama.includes(e) ? e : { ...e, entitas: pencatat }));
+    });
+
+  const addEntry = (e: JournalEntry) => setEntries((s) => [e, ...s]);
 
   const byCode = (code: string) => accounts.find((a) => a.code === code);
 
@@ -175,7 +195,7 @@ export function JournalProvider({ children }: { children: React.ReactNode }) {
         entries,
         semuaJurnal,
         addEntry,
-        setEntries: setEntriesState,
+        setEntries,
         addSaleFromCart,
       }}
     >
