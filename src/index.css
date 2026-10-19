@@ -475,3 +475,295 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* ---------- Ilustrasi 3D ubin scan struk (CSS 3D) ---------- */
+.ilus-3d {
+  position: relative;
+  width: 120px;
+  height: 110px;
+  perspective: 600px;
+  pointer-events: none;
+}
+.ilus-putar {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transform: rotateX(16deg) rotateY(-24deg) rotateZ(4deg);
+  animation: ilus-melayang 4.5s ease-in-out infinite;
+  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.group:hover .ilus-putar {
+  animation-play-state: paused;
+  transform: rotateX(8deg) rotateY(-6deg) rotateZ(0deg) translateY(-6px);
+}
+@keyframes ilus-melayang {
+  0%,
+  100% {
+    transform: rotateX(16deg) rotateY(-24deg) rotateZ(4deg) translateY(0);
+  }
+  50% {
+    transform: rotateX(20deg) rotateY(-14deg) rotateZ(2deg) translateY(-7px);
+  }
+}
+
+/* kertas struk dengan gerigi di bawah */
+.ilus-struk {
+  position: absolute;
+  left: 14px;
+  top: 4px;
+  width: 64px;
+  height: 92px;
+  padding: 9px 8px 0;
+  background: linear-gradient(180deg, #ffffff 0%, #f3f7fa 100%);
+  border-radius: 6px 6px 0 0;
+  transform: translateZ(10px);
+  box-shadow:
+    0 14px 22px -10px rgba(1, 42, 61, 0.55),
+    inset 0 0 0 1px rgba(1, 42, 61, 0.08);
+  -webkit-mask: radial-gradient(circle 4px at 50% 100%, transparent 98%, #000) 0 0 / 9px 100%;
+  mask: radial-gradient(circle 4px at 50% 100%, transparent 98%, #000) 0 0 / 9px 100%;
+}
+.ilus-struk-kepala {
+  width: 60%;
+  height: 7px;
+  margin: 0 auto 7px;
+  border-radius: 9999px;
+  background: #012a3d;
+}
+.ilus-baris {
+  height: 4px;
+  margin-bottom: 5px;
+  border-radius: 9999px;
+  background: #c6d8e4;
+}
+.ilus-struk-total {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1.5px dashed #9cb2c1;
+}
+.ilus-struk-total span {
+  height: 5px;
+  border-radius: 9999px;
+  background: #2f6b8f;
+}
+.ilus-struk-total span:first-child {
+  width: 34%;
+}
+.ilus-struk-total span:last-child {
+  width: 26%;
+  background: #012a3d;
+}
+
+/* tumpukan koin */
+.ilus-koin {
+  position: absolute;
+  right: 6px;
+  bottom: 14px;
+  width: 44px;
+  height: 44px;
+  transform: translateZ(34px);
+}
+.ilus-koin span {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 44px;
+  height: 18px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #e1ecf3 0%, #9cb2c1 100%);
+  box-shadow:
+    0 2px 0 #5487ab,
+    0 6px 10px -4px rgba(1, 42, 61, 0.5);
+}
+.ilus-koin span:last-child {
+  background: radial-gradient(ellipse at 40% 35%, #ffffff 0%, #c6d8e4 70%);
+}
+.ilus-koin b {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 22px;
+  text-align: center;
+  font: 800 9px/1 Inter, system-ui, sans-serif;
+  color: #0a3f5e;
+}
+
+/* kotak kardus (kubus 36px) */
+.ilus-kotak {
+  --s: 36px;
+  position: absolute;
+  right: 12px;
+  bottom: 18px;
+  width: var(--s);
+  height: var(--s);
+  transform-style: preserve-3d;
+  transform: translateZ(30px) rotateX(-18deg) rotateY(32deg);
+}
+.ilus-kotak span {
+  position: absolute;
+  inset: 0;
+  border-radius: 3px;
+  background: linear-gradient(135deg, #2f6b8f, #13577d);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+}
+.ilus-kotak .depan {
+  transform: translateZ(calc(var(--s) / 2));
+  background:
+    linear-gradient(90deg, transparent 44%, rgba(255, 255, 255, 0.35) 44% 56%, transparent 56%),
+    linear-gradient(135deg, #5487ab, #2f6b8f);
+}
+.ilus-kotak .belakang {
+  transform: rotateY(180deg) translateZ(calc(var(--s) / 2));
+}
+.ilus-kotak .kanan {
+  transform: rotateY(90deg) translateZ(calc(var(--s) / 2));
+  background: linear-gradient(135deg, #13577d, #0a3f5e);
+}
+.ilus-kotak .kiri {
+  transform: rotateY(-90deg) translateZ(calc(var(--s) / 2));
+}
+.ilus-kotak .atas {
+  transform: rotateX(90deg) translateZ(calc(var(--s) / 2));
+  background:
+    linear-gradient(90deg, transparent 44%, rgba(255, 255, 255, 0.45) 44% 56%, transparent 56%),
+    linear-gradient(135deg, #9cb2c1, #7193ad);
+}
+.ilus-kotak .bawah {
+  transform: rotateX(-90deg) translateZ(calc(var(--s) / 2));
+}
+
+/* bayangan lantai */
+.ilus-bayangan {
+  position: absolute;
+  left: 18px;
+  right: 10px;
+  bottom: -4px;
+  height: 12px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(1, 42, 61, 0.28), transparent 70%);
+  animation: ilus-bayangan 4.5s ease-in-out infinite;
+}
+.ilus-gelap .ilus-bayangan {
+  background: radial-gradient(ellipse, rgba(0, 0, 0, 0.35), transparent 70%);
+}
+@keyframes ilus-bayangan {
+  0%,
+  100% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scaleX(0.82);
+    opacity: 0.7;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ilus-putar,
+  .ilus-bayangan {
+    animation: none;
+  }
+}
+
+/* Versi untuk ubin berlatar putih (pembelian): warna objek dibalik agar kontras */
+.ilus-3d:not(.ilus-gelap) .ilus-struk {
+  background: linear-gradient(180deg, #13577d 0%, #012a3d 100%);
+  box-shadow:
+    0 14px 22px -10px rgba(1, 42, 61, 0.6),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+.ilus-3d:not(.ilus-gelap) .ilus-struk-kepala {
+  background: #ffffff;
+}
+.ilus-3d:not(.ilus-gelap) .ilus-baris {
+  background: rgba(198, 216, 228, 0.45);
+}
+.ilus-3d:not(.ilus-gelap) .ilus-struk-total {
+  border-top-color: rgba(156, 178, 193, 0.6);
+}
+.ilus-3d:not(.ilus-gelap) .ilus-struk-total span {
+  background: #9cb2c1;
+}
+.ilus-3d:not(.ilus-gelap) .ilus-struk-total span:last-child {
+  background: #ffffff;
+}
+/* kotak lebih terang supaya terbedakan dari struk yang kini gelap */
+.ilus-3d:not(.ilus-gelap) .ilus-kotak span {
+  background: linear-gradient(135deg, #9cb2c1, #7193ad);
+  box-shadow: inset 0 0 0 1px rgba(1, 42, 61, 0.12);
+}
+.ilus-3d:not(.ilus-gelap) .ilus-kotak .depan {
+  background:
+    linear-gradient(90deg, transparent 44%, rgba(1, 42, 61, 0.25) 44% 56%, transparent 56%),
+    linear-gradient(135deg, #c6d8e4, #9cb2c1);
+}
+.ilus-3d:not(.ilus-gelap) .ilus-kotak .kanan {
+  background: linear-gradient(135deg, #7193ad, #5487ab);
+}
+.ilus-3d:not(.ilus-gelap) .ilus-kotak .atas {
+  background:
+    linear-gradient(90deg, transparent 44%, rgba(1, 42, 61, 0.3) 44% 56%, transparent 56%),
+    linear-gradient(135deg, #e1ecf3, #c6d8e4);
+}
+.ilus-3d:not(.ilus-gelap) .ilus-bayangan {
+  background: radial-gradient(ellipse, rgba(1, 42, 61, 0.35), transparent 70%);
+}
+
+/* ---------- Panel notifikasi ---------- */
+.notif-panel {
+  transform-origin: top right;
+  animation: notif-masuk 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes notif-masuk {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.notif-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(1, 42, 61, 0.15) transparent;
+}
+.notif-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.notif-scroll::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background: rgba(1, 42, 61, 0.15);
+}
+/* lonceng bergoyang sesekali bila ada notifikasi belum dibaca */
+.lonceng-goyang {
+  transform-origin: top center;
+  animation: lonceng 4s ease-in-out infinite;
+}
+@keyframes lonceng {
+  0%,
+  86%,
+  100% {
+    transform: rotate(0);
+  }
+  88% {
+    transform: rotate(14deg);
+  }
+  91% {
+    transform: rotate(-12deg);
+  }
+  94% {
+    transform: rotate(8deg);
+  }
+  97% {
+    transform: rotate(-4deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .notif-panel,
+  .lonceng-goyang {
+    animation: none;
+  }
+}

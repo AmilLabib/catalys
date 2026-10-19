@@ -1,7 +1,7 @@
 import { usePageTitleContext } from "../context/PageTitleContext";
-import { useDemoMode } from "../context/DemoModeContext";
-import { Menu, Bell, Search, PlayCircle } from "lucide-react";
+import { Menu, Search } from "lucide-react";
 import PilihAkun from "./PilihAkun";
+import Notifikasi from "./Notifikasi";
 
 type Props = {
   onMobileMenu?: () => void;
@@ -9,7 +9,6 @@ type Props = {
 
 export default function Navbar({ onMobileMenu }: Props) {
   const { title: pageTitle } = usePageTitleContext();
-  const { triggerDemo } = useDemoMode();
 
   return (
     <header className="sticky top-0 z-30 bg-white/70 backdrop-blur-xl border-b border-white/60 shadow-[0_1px_0_rgba(1,42,61,0.06)]">
@@ -46,24 +45,8 @@ export default function Navbar({ onMobileMenu }: Props) {
 
         {/* Kontrol kanan */}
         <div className="flex items-center gap-3">
-          <button
-            aria-label="Notifikasi"
-            className="relative p-2 rounded-full hover:bg-gray-100"
-          >
-            <Bell className="w-5 h-5 text-gray-600" />
-            <span className="absolute top-1.5 right-1.5 block w-2 h-2 rounded-full bg-red-500" />
-          </button>
+          <Notifikasi />
 
-          <button
-            type="button"
-            onClick={triggerDemo}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-full bg-primary text-white hover:bg-primary/90 text-sm"
-            aria-label="Mode demo"
-            title="Mode demo (isi data contoh)"
-          >
-            <PlayCircle className="w-4 h-4" />
-            <span className="hidden sm:inline">Mode Demo</span>
-          </button>
 
           <PilihAkun />
         </div>

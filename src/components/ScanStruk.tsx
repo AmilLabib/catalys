@@ -11,6 +11,7 @@ import QuotaBadge from "./QuotaBadge";
 import { formatRp } from "../data/laporan";
 import { lockedMessage } from "../config/access";
 import Lapisan from "../components/Lapisan";
+import IlustrasiStruk from "./IlustrasiStruk";
 
 // Satu baris struk. Untuk struk pembelian, baris yang cocok dengan bahan baku
 // (bahanId) menambah stok persediaan sebanyak `qty`.
@@ -214,10 +215,13 @@ const ScanStruk = forwardRef<ScanStrukHandle, { hanyaPembelian?: boolean; classN
             <button
               onClick={() => buka("penjualan")}
               disabled={sisa === 0}
-              className="btn-gradient group rounded-2xl p-4 text-left flex flex-col justify-between gap-4 disabled:opacity-50"
+              className="btn-gradient group rounded-2xl p-4 text-left flex flex-col justify-between gap-2 disabled:opacity-50"
             >
-              <span className="w-10 h-10 rounded-xl bg-white/15 ring-1 ring-white/25 flex items-center justify-center">
-                <ShoppingBag className="w-5 h-5" />
+              <span className="flex items-start justify-between gap-2">
+                <span className="w-10 h-10 shrink-0 rounded-xl bg-white/15 ring-1 ring-white/25 flex items-center justify-center">
+                  <ShoppingBag className="w-5 h-5" />
+                </span>
+                <IlustrasiStruk jenis="penjualan" gelap />
               </span>
               <span>
                 <span className="block text-base font-bold">Struk Penjualan</span>
@@ -227,10 +231,13 @@ const ScanStruk = forwardRef<ScanStrukHandle, { hanyaPembelian?: boolean; classN
             <button
               onClick={() => buka("pembelian")}
               disabled={sisa === 0}
-              className="rounded-2xl border-2 border-primary/80 bg-white p-4 text-left flex flex-col justify-between gap-4 text-primary hover:bg-primary/5 transition-colors disabled:opacity-50"
+              className="group rounded-2xl border-2 border-primary/80 bg-white p-4 text-left flex flex-col justify-between gap-2 text-primary hover:bg-primary/5 transition-colors disabled:opacity-50"
             >
-              <span className="w-10 h-10 rounded-xl chip-gradient flex items-center justify-center">
-                <PackagePlus className="w-5 h-5" />
+              <span className="flex items-start justify-between gap-2">
+                <span className="w-10 h-10 shrink-0 rounded-xl chip-gradient flex items-center justify-center">
+                  <PackagePlus className="w-5 h-5" />
+                </span>
+                <IlustrasiStruk jenis="pembelian" />
               </span>
               <span>
                 <span className="block text-base font-bold">Struk Pembelian</span>

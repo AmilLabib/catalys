@@ -35,7 +35,6 @@ import {
 import { usePageTitle } from "../hooks/usePageTitle";
 import { useEntitasSendiri, useLaporanRentang } from "../hooks/useLaporan";
 import PilihPeriode from "../components/PilihPeriode";
-import { PRESET_PERIODE } from "../utils/periode";
 import { useAccount } from "../context/AccountContext";
 import { useToast } from "../context/ToastContext";
 import { useJournal } from "../context/JournalContext";
@@ -51,6 +50,7 @@ import {
   formatRp,
   formatRpSingkat,
   hitungLaporanRentang,
+  HARI_INI,
   labelPeriode,
   formatTanggal,
 } from "../data/laporan";
@@ -85,7 +85,7 @@ export default function Financial() {
   const sendiri = useEntitasSendiri();
 
   // periode laporan: default tahun berjalan (1 Januari s.d. hari ini)
-  const [rentang, setRentang] = useState({ dari: PRESET_PERIODE[0].dari, sampai: PRESET_PERIODE[0].sampai });
+  const [rentang, setRentang] = useState({ dari: `${HARI_INI.slice(0, 4)}-01-01`, sampai: HARI_INI });
   const [entitas, setEntitas] = useState(sendiri);
   const [tab, setTab] = useState(0);
   const lap = useLaporanRentang(rentang.dari, rentang.sampai, entitas);

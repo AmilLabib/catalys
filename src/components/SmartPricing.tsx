@@ -13,7 +13,6 @@ import { useToast } from "../context/ToastContext";
 import QuotaBadge from "./QuotaBadge";
 import BrandIcon, { type Brand } from "./BrandIcon";
 import { usePageTitle } from "../hooks/usePageTitle";
-import { useDemoMode } from "../context/DemoModeContext";
 import { useInventory } from "../context/InventoryContext";
 import { Search, Sparkles, Store, Star, Lightbulb, TrendingUp, Target, Scale, Package, MapPin } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, ReferenceLine } from "recharts";
@@ -91,7 +90,6 @@ const pct = (v: number) => `${(v * 100).toFixed(1).replace(".", ",")}%`;
 
 export default function SmartPricing() {
   usePageTitle("Smart Pricing");
-  const { demoRunId } = useDemoMode();
   const { products } = useInventory();
 
   const [produkId, setProdukId] = useState("");
@@ -141,19 +139,6 @@ export default function SmartPricing() {
     setHasilCari({ semua: m.semua, kota });
     setMemuat(false);
   };
-
-  // Mode Demo di navbar: isi contoh Es Teh
-  useEffect(() => {
-    if (!demoRunId) return;
-    setProdukId("");
-    setNama("Es Teh Manis");
-    setHpp(2500);
-    setTetap(1_200_000);
-    setVolume(800);
-    setGambar("/ice-tea.png");
-    void cari("Es Teh Manis", 2500, 1_200_000, 800);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [demoRunId]);
 
   const hasil = useMemo(
     () => (pasar && valid ? hitung(Number(hpp), Number(tetap), Number(volume), pasar, skenario) : null),

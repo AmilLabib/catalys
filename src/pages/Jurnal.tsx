@@ -311,29 +311,29 @@ export default function Jurnal() {
             <p className="flex items-center gap-1.5 text-sm font-semibold text-gray-800">
               <Zap className="w-4 h-4 text-amber-500" /> Transaksi umum
             </p>
-            <p className="text-xs text-gray-500 mb-3">Pilih salah satu untuk mengisi akun debit dan kredit otomatis, lalu tinggal isi nominal.</p>
-            <div className="flex flex-wrap gap-2">
+            <p className="text-xs text-gray-500 mb-2">Pilih jenis transaksi: akun debit & kredit terisi otomatis, tinggal isi nominal.</p>
+            <select
+              value=""
+              onChange={(e) => {
+                const t = TEMPLAT_JURNAL.find((x) => x.nama === e.target.value);
+                if (t) pakaiTemplat(t);
+              }}
+              className="w-full md:w-96 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary/15"
+              aria-label="Pilih transaksi umum"
+            >
+              <option value="" disabled>
+                Pilih transaksi umum…
+              </option>
               {TEMPLAT_JURNAL.map((t) => {
-                const d = accounts.find((a) => a.code === t.debit);
-                const k = accounts.find((a) => a.code === t.kredit);
+                const d = accounts.find((x) => x.code === t.debit);
+                const k = accounts.find((x) => x.code === t.kredit);
                 return (
-                  <button
-                    key={t.nama}
-                    type="button"
-                    onClick={() => pakaiTemplat(t)}
-                    title={d && k ? `Debit ${d.name} · Kredit ${k.name}` : undefined}
-                    className="rounded-xl border bg-white px-3 py-2 text-left hover:border-primary hover:shadow-sm"
-                  >
-                    <span className="block text-sm font-medium text-gray-900">{t.nama}</span>
-                    {d && k && (
-                      <span className="block text-[11px] text-gray-500">
-                        D: {d.name} · K: {k.name}
-                      </span>
-                    )}
-                  </button>
+                  <option key={t.nama} value={t.nama}>
+                    {d && k ? `${t.nama} (D: ${d.name} · K: ${k.name})` : t.nama}
+                  </option>
                 );
               })}
-            </div>
+            </select>
           </div>
         )}
 
