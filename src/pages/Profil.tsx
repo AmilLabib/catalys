@@ -12,11 +12,17 @@ import {
   Phone,
   MapPin,
   Building2,
+  RotateCcw,
+  AlertTriangle,
 } from "lucide-react";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { useAccount, type Profile } from "../context/AccountContext";
 import { useToast } from "../context/ToastContext";
 import { rayakan } from "../utils/efek";
+import { resetDataDemo } from "../utils/resetDemo";
+import { useJournal } from "../context/JournalContext";
+import { useBusinessSector, SECTOR_OPTIONS } from "../context/BusinessSectorContext";
+import Modal from "../components/Modal";
 import {
   PLANS,
   PLAN_LABEL,
@@ -33,6 +39,7 @@ const TABS = [
   { key: "kuota", label: "Penggunaan Kuota", icon: Gauge },
   { key: "keamanan", label: "Keamanan", icon: ShieldCheck },
   { key: "tagihan", label: "Riwayat Tagihan", icon: Receipt },
+  { key: "data", label: "Data Demo", icon: RotateCcw },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -115,6 +122,7 @@ export default function Profil() {
           {tab === "kuota" && <TabKuota />}
           {tab === "keamanan" && <TabKeamanan />}
           {tab === "tagihan" && <TabTagihan />}
+          {tab === "data" && <TabDataDemo />}
         </div>
       </div>
     </div>
@@ -318,6 +326,86 @@ function TabKuota() {
           );
         })}
       </div>
+    </Card>
+  );
+}
+
+function TabDataDemo() {
+  const { cabangList, plan } = useAccount();
+  const { entries } = useJournal();
+  const { sector } = useBusinessSector();
+  const [konfirmasi, setKonfirmasi] = useState(false);
+  const [tampilkanTur, setTampilkanTur] = useState(true);
+  const namaSektor = SECTOR_OPTIONS.find((o) => o.value === sector)?.label ?? sector;
+
+  const ringkasan: [string, string][] = [
+    ["Cabang dibuka", cabangList.length ? `${cabangList.length} (termasuk Cabang Utama)` : "Belum ada"],
+    ["Jurnal yang diinput", `${entries.length} entri`],
+    ["Paket aktif", PLAN_LABEL[plan]],
+    ["Sektor bisnis", namaSektor],
+  ];
+
+  return (
+    <Card
+      title="Reset Data Demo"
+      desc="Kembalikan aplikasi ke kondisi awal, misalnya sebelum presentasi. Hanya data di browser ini yang terhapus."
+    >
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {ringkasan.map(([k, v]) => (
+          <div key={k} className="rounded-xl border border-gray-100 bg-gray-50/60 px-4 py-3">
+            <p className="text-xs text-gray-500">{k}</p>
+            <p className="font-semibold text-primary">{v}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-5 text-sm text-gray-700">
+        <p className="font-semibold text-gray-900">Yang akan dikembalikan ke awal:</p>
+        <ul className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 list-disc pl-5">
+          <li>Akun, paket, kuota, dan semua cabang</li>
+          <li>Jurnal yang diinput dan pesanan Kasir</li>
+          <li>Produk, stok, bahan baku, dan resep</li>
+          <li>Bagan Akun dan sektor bisnis</li>
+          <li>Karyawan, KPI, dan status gaji</li>
+          <li>Portofolio pinjaman dan sesi konsultasi</li>
+        </ul>
+      </div>
+
+      <label className="mt-5 flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
+        <input
+          type="checkbox"
+          checked={tampilkanTur}
+          onChange={(e) => setTampilkanTur(e.target.checked)}
+          className="w-4 h-4 rounded border-gray-300 text-primary"
+        />
+        Tampilkan lagi tur panduan setelah reset
+      </label>
+
+      <button
+        onClick={() => setKonfirmasi(true)}
+        className="mt-5 inline-flex items-center gap-2 rounded-xl border-2 border-primary px-5 py-2.5 text-sm font-semibold text-primary hover:bg-primary hover:text-white transition-colors"
+      >
+        <RotateCcw className="w-4 h-4" /> Reset data demo
+      </button>
+
+      <Modal isOpen={konfirmasi} onClose={() => setKonfirmasi(false)} title="Reset data demo?">
+        <div className="text-center">
+          <div className="mx-auto w-14 h-14 rounded-2xl chip-gradient flex items-center justify-center">
+            <AlertTriangle className="w-6 h-6" />
+          </div>
+          <p className="mt-3 text-sm text-gray-600">
+            Semua data yang sudah dimasukkan akan dihapus dan tidak bisa dikembalikan. Aplikasi akan dimuat ulang ke halaman login.
+          </p>
+          <div className="mt-5 grid grid-cols-2 gap-2">
+            <button onClick={() => setKonfirmasi(false)} className="rounded-xl border px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
+              Batal
+            </button>
+            <button onClick={() => resetDataDemo({ tampilkanTur })} className="btn-gradient rounded-xl px-4 py-2.5 text-sm font-semibold">
+              Ya, reset
+            </button>
+          </div>
+        </div>
+      </Modal>
     </Card>
   );
 }
