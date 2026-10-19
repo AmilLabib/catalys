@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAccount } from "../context/AccountContext";
+import type { FeatureKey } from "../config/access";
 
 const TOUR_KEY = "tour_shown_v1";
 
@@ -9,9 +11,10 @@ type Step = {
   body: string;
   selector?: string;
   path?: string;
+  feature?: FeatureKey;
 };
 
-const STEPS: Step[] = [
+const ALL_STEPS: Step[] = [
   {
     id: "sidebar",
     title: "Navigasi Utama",
@@ -22,8 +25,8 @@ const STEPS: Step[] = [
   {
     id: "dashboard-kpi",
     title: "Ringkasan Performa",
-    body: "Di halaman Dashboard, Anda bisa melihat ringkasan Revenue, Net Income, dan aset bisnis Anda.",
-    selector: "section.grid",
+    body: "Di halaman Beranda, Anda bisa melihat ringkasan pendapatan, laba bersih, dan aset bisnis Anda.",
+    selector: "main section.grid",
     path: "/dashboard",
   },
   {
@@ -32,6 +35,7 @@ const STEPS: Step[] = [
     body: "Akses POS cepat untuk menangani transaksi penjualan dan melihat produk.",
     selector: "a[href='/kasir']",
     path: "/kasir",
+    feature: "kasir",
   },
   {
     id: "kasir-search",
@@ -39,34 +43,39 @@ const STEPS: Step[] = [
     body: "Ketik nama produk di sini untuk mempercepat transaksi. Klik produk untuk menambahkannya ke keranjang.",
     selector: "input[placeholder='Cari produk...']",
     path: "/kasir",
+    feature: "kasir",
   },
   {
     id: "financial",
-    title: "Menu Financial",
-    body: "Masuk ke menu Financial untuk melihat pencatatan jurnal dan laporan lengkap.",
+    title: "Menu Laporan Keuangan",
+    body: "Masuk ke menu Laporan Keuangan untuk melihat laporan lengkap sesuai format SAK EMKM.",
     selector: "a[href='/financial']",
     path: "/financial",
+    feature: "laporanKeuangan",
   },
   {
     id: "financial-tabs",
     title: "Tab Laporan Keuangan",
-    body: "Gunakan tab ini untuk beralih antara Balance Sheet, Income Statement, dan Cash Flow.",
-    selector: "section.mt-2.bg-white.rounded-xl",
+    body: "Gunakan tab ini untuk beralih antara Neraca, Laporan Laba Rugi, dan Laporan Arus Kas.",
+    selector: "#tab-laporan",
     path: "/financial",
+    feature: "laporanKeuangan",
   },
   {
     id: "data-driven",
-    title: "Menu Data Driven",
-    body: "Modul Data Driven menganalisis tren bisnis Anda dan mendeteksi anomali.",
+    title: "Menu Audit Berbasis Data",
+    body: "Modul Audit menganalisis tren bisnis Anda dan mendeteksi anomali.",
     selector: "a[href='/data-driven']",
     path: "/data-driven",
+    feature: "audit",
   },
   {
     id: "data-driven-audit",
-    title: "Audit AI & Anomali",
-    body: "Di bagian ini, AI mendeteksi lonjakan biaya tak terduga dan memberikan saran optimalisasi.",
-    selector: "section.bg-white.rounded-2xl", // Matches standard cards in data driven
+    title: "Audit & Anomali",
+    body: "Di bagian ini, sistem mendeteksi lonjakan biaya tak terduga dan memberikan saran optimalisasi.",
+    selector: "#audit-ringkasan",
     path: "/data-driven",
+    feature: "audit",
   },
 ];
 
@@ -77,6 +86,9 @@ export default function TourGuide() {
   const [showFinished, setShowFinished] = useState(false);
   const [dontShowAgain, setDontShowAgain] = useState(false);
   const navigate = useNavigate();
+  const { canUse } = useAccount();
+  // Langkah tur hanya untuk fitur yang bisa diakses akun saat ini
+  const STEPS = ALL_STEPS.filter((s) => !s.feature || canUse(s.feature));
 
   useEffect(() => {
     try {
@@ -91,7 +103,7 @@ export default function TourGuide() {
     }
   }, []);
 
-  const step = STEPS[stepIndex];
+  const step = STEPS[Math.min(stepIndex, STEPS.length - 1)];
 
   const next = () => setStepIndex((s) => Math.min(s + 1, STEPS.length - 1));
   const prev = () => setStepIndex((s) => Math.max(s - 1, 0));
@@ -159,7 +171,7 @@ export default function TourGuide() {
             </div>
           </div>
           <h3 className="text-xl font-bold mb-2 text-center">
-            Selamat Datang di Arthami
+            Selamat Datang di Catalys
           </h3>
           <p className="text-gray-600 mb-4 text-center text-sm">
             Ikuti tutorial untuk mempelajari aplikasi ini.
@@ -307,7 +319,7 @@ export default function TourGuide() {
             </div>
             <div className="flex items-center shrink-0">
               <button onClick={skip} className="text-sm text-gray-400 hover:text-gray-600 transition-colors px-2 py-1 rounded-md">
-                Skip
+                Lewati
               </button>
             </div>
           </div>
@@ -321,7 +333,7 @@ export default function TourGuide() {
                 disabled={stepIndex === 0}
                 className="px-4 py-2 text-sm font-medium rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                Prev
+                Sebelumnya
               </button>
               <button
                 onClick={() => {
@@ -330,7 +342,7 @@ export default function TourGuide() {
                 }}
                 className="px-4 py-2 text-sm font-medium rounded-xl bg-primary text-white hover:bg-primary/90 transition-colors"
               >
-                {stepIndex === STEPS.length - 1 ? "Done" : "Next"}
+                {stepIndex === STEPS.length - 1 ? "Selesai" : "Berikutnya"}
               </button>
             </div>
           </div>

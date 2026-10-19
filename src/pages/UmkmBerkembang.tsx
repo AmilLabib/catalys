@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { usePageTitle } from "../hooks/usePageTitle";
-import { Calendar, MapPin, Trophy, BookOpen, ExternalLink } from "lucide-react";
+import { Calendar, MapPin, Trophy, BookOpen, ExternalLink, PlayCircle } from "lucide-react";
+import PillTabs from "../components/PillTabs";
 
 type Opportunity = {
   id: string;
@@ -16,9 +17,9 @@ type Opportunity = {
 const opportunities: Opportunity[] = [
   {
     id: "evt-1",
-    title: "Kompetisi Bisnis Nasional 2025",
+    title: "Kompetisi Bisnis Nasional 2026",
     category: "Event & Kompetisi",
-    date: "2025-02-15",
+    date: "2026-11-14",
     time: "09:00 WIB",
     location: "Jakarta (Offline)",
     image: "/kompetisi-1.png",
@@ -29,7 +30,7 @@ const opportunities: Opportunity[] = [
     id: "evt-2",
     title: "Expo UMKM Nusantara",
     category: "Event & Kompetisi",
-    date: "2025-03-10",
+    date: "2026-12-05",
     time: "10:00 WIB",
     location: "Bandung (Offline)",
     image: "/kompetisi-2.png",
@@ -40,7 +41,7 @@ const opportunities: Opportunity[] = [
     id: "fin-1",
     title: "Bedah Laporan Keuangan untuk Pemula",
     category: "Pelatihan Keuangan",
-    date: "2025-01-20",
+    date: "2026-11-06",
     time: "19:00 WIB",
     location: "Online (Zoom)",
     image: "/keuangan-1.png",
@@ -51,7 +52,7 @@ const opportunities: Opportunity[] = [
     id: "fin-2",
     title: "Kelas HPP & Manajemen Cashflow",
     category: "Pelatihan Keuangan",
-    date: "2025-02-05",
+    date: "2026-11-20",
     time: "19:30 WIB",
     location: "Online (Google Meet)",
     image: "/keuangan-2.png",
@@ -62,7 +63,7 @@ const opportunities: Opportunity[] = [
     id: "exp-1",
     title: "Menembus Pasar Eropa: Standar Kemasan",
     category: "Pelatihan Ekspor",
-    date: "2025-01-28",
+    date: "2026-11-12",
     time: "13:00 WIB",
     location: "Jakarta (Offline)",
     image: "/ekspor-1.png",
@@ -72,19 +73,18 @@ const opportunities: Opportunity[] = [
     id: "exp-2",
     title: "Mencari Buyer & Dokumen Bea Cukai",
     category: "Pelatihan Ekspor",
-    date: "2025-02-12",
+    date: "2026-12-03",
     time: "14:00 WIB",
     location: "Online (Webinar)",
     image: "/ekspor-2.png",
     short:
       "Strategi mencari buyer internasional dan kelengkapan dokumen ekspor.",
   },
-  // Additional dummy data
   {
     id: "evt-3",
-    title: "Kompetisi Inovasi Produk 2025",
+    title: "Kompetisi Inovasi Produk 2027",
     category: "Event & Kompetisi",
-    date: "2025-04-05",
+    date: "2027-01-23",
     time: "09:30 WIB",
     location: "Surabaya (Offline)",
     image: "/kompetisi-3.png",
@@ -95,7 +95,7 @@ const opportunities: Opportunity[] = [
     id: "evt-4",
     title: "Pitch Day UMKM Digital",
     category: "Event & Kompetisi",
-    date: "2025-05-18",
+    date: "2027-02-20",
     time: "13:00 WIB",
     location: "Online (Live Stream)",
     image: "/kompetisi-4.png",
@@ -105,7 +105,7 @@ const opportunities: Opportunity[] = [
     id: "fin-3",
     title: "Fundamental Akuntansi untuk UMKM",
     category: "Pelatihan Keuangan",
-    date: "2025-03-02",
+    date: "2026-12-11",
     time: "19:00 WIB",
     location: "Online (Zoom)",
     image: "/keuangan-3.png",
@@ -115,7 +115,7 @@ const opportunities: Opportunity[] = [
     id: "fin-4",
     title: "Optimasi Pajak UMKM",
     category: "Pelatihan Keuangan",
-    date: "2025-03-20",
+    date: "2027-01-15",
     time: "19:30 WIB",
     location: "Online (Webinar)",
     image: "/keuangan-4.png",
@@ -126,7 +126,7 @@ const opportunities: Opportunity[] = [
     id: "exp-3",
     title: "Sertifikasi Halal & Standar Global",
     category: "Pelatihan Ekspor",
-    date: "2025-04-10",
+    date: "2027-01-28",
     time: "10:00 WIB",
     location: "Jakarta (Offline)",
     image: "/ekspor-3.png",
@@ -137,7 +137,7 @@ const opportunities: Opportunity[] = [
     id: "exp-4",
     title: "Logistik Ekspor: Incoterms & Freight",
     category: "Pelatihan Ekspor",
-    date: "2025-04-28",
+    date: "2027-02-11",
     time: "14:00 WIB",
     location: "Online (Webinar)",
     image: "/ekspor-4.png",
@@ -145,6 +145,22 @@ const opportunities: Opportunity[] = [
       "Memahami Incoterms, negosiasi freight, dan kelancaran proses pengiriman.",
   },
 ];
+
+// Video pembelajaran per kategori (ID video YouTube asli)
+const VIDEO: Record<Opportunity["category"], { id: string; judul: string; kanal: string }[]> = {
+  "Event & Kompetisi": [
+    { id: "BCNVt9maaOg", judul: "Cara Bikin Bisnis Plan Mudah dalam 10 Menit", kanal: "Kelly Patricia" },
+    { id: "WQ0CpAKdCAk", judul: "Contoh Pitch Deck Startup yang Bagus", kanal: "BRI Ventures" },
+  ],
+  "Pelatihan Keuangan": [
+    { id: "Gpxd-zSthGg", judul: "Pencatatan Keuangan Usaha Kecil dalam 5 Langkah", kanal: "Kelly Patricia" },
+    { id: "03m82d6TUOk", judul: "Cara Mudah Hitung HPP Usaha Kecil", kanal: "Kelly Patricia" },
+  ],
+  "Pelatihan Ekspor": [
+    { id: "R5NqM3hafPo", judul: "Cara Ekspor Barang ke Luar Negeri untuk Pemula", kanal: "Belajar Ekspor Impor" },
+    { id: "cln1EOfb9VY", judul: "Baru Mau Ekspor? Tonton Ini Dulu", kanal: "UKM Eksporter Indonesia" },
+  ],
+};
 
 const tabs = [
   { key: "Event & Kompetisi", label: "Event & Kompetisi", icon: Trophy },
@@ -170,33 +186,54 @@ function UmkmBerkembang() {
           ekspor dari tim riset internal.
         </p>
 
-        {/* Pill Tabs */}
-        <div className="flex flex-wrap gap-2 mb-6">
-          {tabs.map((t) => {
-            const Icon = t.icon;
-            const active = activeTab === t.key;
-            return (
-              <button
-                key={t.key}
-                onClick={() => setActiveTab(t.key)}
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border transition-colors ${
-                  active
-                    ? "bg-primary text-white border-primary"
-                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                }`}
-              >
-                <Icon className="w-4 h-4" /> {t.label}
-              </button>
-            );
-          })}
-        </div>
+        <PillTabs tabs={tabs} active={activeTab} onChange={setActiveTab} className="mb-6" />
 
+        {/* Video pembelajaran */}
+        <section className="mb-8">
+          <div className="flex items-center gap-2 mb-3">
+            <PlayCircle className="w-5 h-5 text-red-600" />
+            <h2 className="text-lg font-semibold text-primary">Video Pembelajaran</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {VIDEO[activeTab].map((v) => (
+              <div key={v.id} className="card-elegant overflow-hidden">
+                <div className="relative aspect-video bg-black">
+                  <iframe
+                    className="absolute inset-0 w-full h-full"
+                    src={`https://www.youtube-nocookie.com/embed/${v.id}?rel=0`}
+                    title={v.judul}
+                    loading="lazy"
+                    allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    referrerPolicy="strict-origin-when-cross-origin"
+                    allowFullScreen
+                  />
+                </div>
+                <div className="p-4 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-900 line-clamp-2">{v.judul}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{v.kanal}</p>
+                  </div>
+                  <a
+                    href={`https://www.youtube.com/watch?v=${v.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                  >
+                    Tonton di YouTube <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <h2 className="text-lg font-semibold text-primary mb-3">Program & Acara</h2>
         {/* Feed Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filtered.map((item) => (
             <article
               key={item.id}
-              className="bg-white rounded-2xl shadow-md overflow-hidden card-hover"
+              className="card-elegant hover-lift overflow-hidden"
             >
               {/* Poster / Banner */}
               <div className="relative aspect-video bg-gray-100">
@@ -227,7 +264,8 @@ function UmkmBerkembang() {
                 {/* Meta */}
                 <div className="mt-2 flex items-center flex-wrap gap-x-4 gap-y-1 text-sm text-gray-700">
                   <span className="inline-flex items-center gap-1">
-                    <Calendar className="w-4 h-4 text-gray-500" /> {item.date}
+                    <Calendar className="w-4 h-4 text-gray-500" />{" "}
+                    {new Date(item.date).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
                   </span>
                   <span className="inline-flex items-center gap-1">
                     <ClockIcon /> {item.time}
@@ -259,7 +297,7 @@ function UmkmBerkembang() {
   );
 }
 
-// Small inline icon to avoid extra import
+// Ikon jam kecil
 function ClockIcon() {
   return (
     <svg

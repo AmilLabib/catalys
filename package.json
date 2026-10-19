@@ -1,5 +1,5 @@
 {
-  "name": "react",
+  "name": "catalys",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -15,12 +15,15 @@
     "@xyflow/react": "^12.10.2",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.7",
     "lucide-react": "^0.275.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.14.1",
     "react-simple-maps": "^3.0.0",
-    "recharts": "^3.5.1"
+    "recharts": "^3.5.1",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

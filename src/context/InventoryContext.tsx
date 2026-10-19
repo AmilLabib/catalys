@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { BusinessSector } from "./BusinessSectorContext";
 import { useBusinessSector } from "./BusinessSectorContext";
 
@@ -16,7 +16,8 @@ export type InventoryItem = {
   supplier?: string;
 };
 
-const STORAGE_PREFIX = "inventory_v1_";
+// v2: data v1 bisa berisi produk sektor lain yang tercampur, jadi diabaikan
+const STORAGE_PREFIX = "inventory_v2_";
 
 type InventoryCtx = {
   products: InventoryItem[];
@@ -24,6 +25,7 @@ type InventoryCtx = {
   updateProduct: (id: string, p: Partial<InventoryItem>) => void;
   deleteProduct: (id: string) => void;
   decrementStock: (id: string, qty: number) => boolean;
+  incrementStock: (id: string, qty: number) => void;
   getById: (id: string) => InventoryItem | undefined;
   setProducts: (items: InventoryItem[]) => void;
 };
@@ -41,7 +43,7 @@ function seedForSector(sector: BusinessSector): InventoryItem[] {
     sellingPrice?: number,
   ) =>
     ({
-      id: `${sector}-${n.replace(/\s+/g, "-")}-${Math.floor(Math.random() * 10000)}`,
+      id: `${sector}-${idx}-${n.replace(/\s+/g, "-").toLowerCase()}`,
       name: n,
       category,
       qty,
@@ -53,7 +55,7 @@ function seedForSector(sector: BusinessSector): InventoryItem[] {
     }) as InventoryItem;
 
   if (sector === "perdagangan") {
-    // retail images in /retail/1.png .. /retail/8.png
+    // Foto retail baru tersedia untuk 2 produk pertama (/retail/1.png, 2.png)
     const names = [
       "Mie Instan",
       "Beras 5kg",
@@ -64,16 +66,17 @@ function seedForSector(sector: BusinessSector): InventoryItem[] {
       "Kopi Sachet",
       "Teh Celup",
     ];
-    return names.map((n, i) =>
-      make(
+    return names.map((n, i) => {
+      const item = make(
         n,
         "Retail",
         Math.max(50, 200 - i * 20),
         [4000, 72000, 18000, 12000, 12000, 16000, 2500, 2000][i] || 10000,
         "retail",
         i + 1,
-      ),
-    );
+      );
+      return i < 2 ? item : { ...item, image: undefined };
+    });
   }
 
   if (sector === "kuliner") {
@@ -143,16 +146,12 @@ function seedForSector(sector: BusinessSector): InventoryItem[] {
       42000, // ayam
     ];
 
-    const extras = extraNames.map((n, i) =>
-      make(
-        n,
-        "Kuliner",
-        Math.max(10, 80 - i * 2),
-        extraCosts[i] || 20000,
-        "kuliner",
-        (i % 10) + 1,
-      ),
-    );
+    // Belum ada foto khusus untuk menu ini, jadi tampilkan placeholder
+    // (sebelumnya memakai ulang foto bakso/mie sehingga terlihat bertumpuk)
+    const extras = extraNames.map((n, i) => ({
+      ...make(n, "Kuliner", Math.max(10, 80 - i * 2), extraCosts[i] || 20000, "kuliner", 1),
+      image: undefined,
+    }));
 
     return [...base, ...extras];
   }
@@ -174,45 +173,6 @@ function seedForSector(sector: BusinessSector): InventoryItem[] {
       120000, 60000, 45000, 80000, 450000, 15000, 420000, 1200000, 8000,
     ];
 
-    // Additional mock items requested: 5x Lele, 5x Nila, 5x Ayam
-    const extraNames: string[] = [
-      // Lele variants
-      "Lele Lokal 250g",
-      "Lele Jumbo 500g",
-      "Lele Pembesaran (seedling)",
-      "Lele Fillet 1 pack",
-      "Lele 1kg Pack",
-      // Nila variants
-      "Nila Lokal 250g",
-      "Nila Jumbo 500g",
-      "Nila Pembesaran (seedling)",
-      "Nila Fillet 1 pack",
-      "Nila 1kg Pack",
-      // Ayam variants
-      "Ayam Broiler 1 ekor",
-      "Ayam Petelur 1 ekor",
-      "Ayam Kampung 1 ekor",
-      "Ayam Organik 1 ekor",
-      "Ayam Potong 1 ekor",
-    ];
-    const extraCosts: number[] = [
-      15000,
-      26000,
-      8000,
-      45000,
-      60000, // lele
-      18000,
-      30000,
-      9000,
-      48000,
-      65000, // nila
-      40000,
-      45000,
-      55000,
-      90000,
-      42000, // ayam
-    ];
-
     const base = names.map((n, i) =>
       make(
         n,
@@ -224,19 +184,7 @@ function seedForSector(sector: BusinessSector): InventoryItem[] {
       ),
     );
 
-    // Map extra names to peternakan images (wrap index if necessary)
-    const extras = extraNames.map((n, i) =>
-      make(
-        n,
-        "Perikanan / Peternakan",
-        Math.max(10, 100 - i * 3),
-        extraCosts[i] || 15000,
-        "peternakan",
-        (i % 10) + 1,
-      ),
-    );
-
-    return [...base, ...extras];
+    return base;
   }
 
   if (sector === "fashion") {
@@ -301,114 +249,75 @@ function seedForSector(sector: BusinessSector): InventoryItem[] {
   return [];
 }
 
+function normalisasi(items: InventoryItem[]) {
+  return items.map((item) => ({
+    ...item,
+    sellingPrice: item.sellingPrice ?? item.unitCost,
+  }));
+}
+
+function muatSektor(sector: BusinessSector): InventoryItem[] {
+  try {
+    const raw = localStorage.getItem(`${STORAGE_PREFIX}${sector}`);
+    if (raw) return normalisasi(JSON.parse(raw) as InventoryItem[]);
+  } catch {
+    // abaikan, pakai data contoh
+  }
+  return normalisasi(seedForSector(sector));
+}
+
 export function InventoryProvider({ children }: { children: React.ReactNode }) {
   const { sector } = useBusinessSector();
-  const key = `${STORAGE_PREFIX}${sector}`;
 
-  // Start with the seeded data for the current sector. We'll persist/overwrite
-  // stored inventory for all sectors on mount so the seeded data becomes
-  // authoritative (per user's request to replace previous inventory).
-  const [products, setProductsState] = useState<InventoryItem[]>(() =>
-    seedForSector(sector).map((item) => ({
-      ...item,
-      sellingPrice: item.sellingPrice ?? item.unitCost,
-    })),
+  // Inventaris disimpan per sektor dalam satu objek, sehingga daftar produk
+  // selalu terikat pada sektornya sendiri. Versi lama menyimpan daftar
+  // aktif ke kunci sektor baru sesaat setelah sektor diganti (produk satu
+  // sektor bisa tertulis ke sektor lain) dan menimpa semua data dengan data
+  // contoh setiap kali halaman dimuat ulang.
+  const [store, setStore] = useState<Partial<Record<BusinessSector, InventoryItem[]>>>(
+    () => ({ [sector]: muatSektor(sector) }),
   );
 
-  // Overwrite any previously stored inventory for all sectors with the
-  // seeded datasets. This is destructive by design (user asked to delete
-  // previous data and replace it).
-  useEffect(() => {
-    const ALL_SECTORS: BusinessSector[] = [
-      "kuliner",
-      "agribisnis",
-      "fashion",
-      "industri",
-      "perdagangan",
-    ];
-    try {
-      ALL_SECTORS.forEach((s) => {
-        localStorage.setItem(
-          `${STORAGE_PREFIX}${s}`,
-          JSON.stringify(seedForSector(s)),
-        );
-      });
-      // Ensure current provider state matches the seeded data for the active sector
-      setProductsState(seedForSector(sector));
-    } catch {
-      // ignore localStorage failures
-    }
-    // run only once on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // when sector changes, try to load that sector's inventory (or seed)
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(key);
-      if (raw) {
-        const parsed = JSON.parse(raw) as InventoryItem[];
-        setProductsState(
-          parsed.map((item) => ({
-            ...item,
-            sellingPrice: item.sellingPrice ?? item.unitCost,
-          })),
-        );
-      } else {
-        setProductsState(
-          seedForSector(sector).map((item) => ({
-            ...item,
-            sellingPrice: item.sellingPrice ?? item.unitCost,
-          })),
-        );
+      for (const [s, items] of Object.entries(store)) {
+        localStorage.setItem(`${STORAGE_PREFIX}${s}`, JSON.stringify(items));
       }
     } catch {
-      setProductsState(
-        seedForSector(sector).map((item) => ({
-          ...item,
-          sellingPrice: item.sellingPrice ?? item.unitCost,
-        })),
-      );
+      // abaikan kegagalan penyimpanan
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sector]);
+  }, [store]);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(key, JSON.stringify(products));
-    } catch {}
-  }, [key, products]);
+  // Sektor yang belum pernah dibuka dibaca langsung dari penyimpanan,
+  // lalu masuk ke store pada perubahan pertama
+  const products = useMemo(() => store[sector] ?? muatSektor(sector), [store, sector]);
+
+  const ubah = (fn: (items: InventoryItem[]) => InventoryItem[]) =>
+    setStore((prev) => ({ ...prev, [sector]: fn(prev[sector] ?? muatSektor(sector)) }));
 
   const addProduct = (p: Omit<InventoryItem, "id">) => {
     const item: InventoryItem = {
-      id: `prod-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      id: `${sector}-prod-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       ...p,
       sellingPrice: p.sellingPrice ?? p.unitCost,
     };
-    setProductsState((s) => [item, ...s]);
+    ubah((s) => [item, ...s]);
   };
 
-  const updateProduct = (id: string, p: Partial<InventoryItem>) => {
-    setProductsState((s) =>
-      s.map((it) => (it.id === id ? { ...it, ...p } : it)),
-    );
-  };
+  const updateProduct = (id: string, p: Partial<InventoryItem>) =>
+    ubah((s) => s.map((it) => (it.id === id ? { ...it, ...p } : it)));
 
-  const deleteProduct = (id: string) =>
-    setProductsState((s) => s.filter((it) => it.id !== id));
+  const deleteProduct = (id: string) => ubah((s) => s.filter((it) => it.id !== id));
 
   const decrementStock = (id: string, qty: number) => {
-    // Use current products snapshot to perform a synchronous check and update
-    const idx = products.findIndex((p) => p.id === id);
-    if (idx === -1) return false;
-    const currentQty = products[idx].qty;
-    if (currentQty < qty) return false;
-    const next = products.map((p) =>
-      p.id === id ? { ...p, qty: Math.max(0, p.qty - qty) } : p,
-    );
-    setProductsState(next);
+    const current = products.find((p) => p.id === id);
+    if (!current || current.qty < qty) return false;
+    ubah((s) => s.map((p) => (p.id === id ? { ...p, qty: Math.max(0, p.qty - qty) } : p)));
     return true;
   };
+
+  const incrementStock = (id: string, qty: number) =>
+    ubah((s) => s.map((p) => (p.id === id ? { ...p, qty: p.qty + qty } : p)));
 
   const getById = (id: string) => products.find((p) => p.id === id);
 
@@ -420,8 +329,9 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
         updateProduct,
         deleteProduct,
         decrementStock,
+        incrementStock,
         getById,
-        setProducts: setProductsState,
+        setProducts: (items) => ubah(() => items),
       }}
     >
       {children}

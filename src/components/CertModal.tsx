@@ -51,8 +51,8 @@ export default function CertModal({ cert, onClose }: Props) {
                 }}
                 className="bg-primary text-white px-4 py-2 rounded flex items-center gap-2"
               >
-                Get with VerdeLedger
-                <img src="/logo-white.png" alt="verdeledger" className="h-4" />
+                Dapatkan dengan Catalys
+                <img src="/logo.png" alt="Catalys" className="h-4" />
               </button>
             </div>
           </div>

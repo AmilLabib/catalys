@@ -533,7 +533,7 @@ const MOCK_DISTRIBUTORS: SearchResult[] = [
     avatarPlaceholder: "bg-amber-700",
     imagePlaceholder:
       "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&q=80",
-    caption: "Style minimalis untuk apartemen dan kos.",
+    caption: "Gaya minimalis untuk apartemen dan kos.",
     likes: "1,300",
   },
   {
@@ -1305,7 +1305,7 @@ const CariDistributor = () => {
 
         {/* AI Search Section */}
         <div
-          className="bg-white rounded-2xl p-6 shadow-md border border-gray-100 min-w-0"
+          className="card-elegant p-6 min-w-0"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center gap-2 mb-4">

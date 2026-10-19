@@ -1,6 +1,9 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { Account } from "./ChartOfAccountsContext";
 import { useChartOfAccounts } from "./ChartOfAccountsContext";
+import { useAccount } from "./AccountContext";
+import { buatJurnalContoh } from "../data/jurnalContoh";
+import { KONSOLIDASI } from "../data/laporan";
 
 export type JournalLine = {
   id: string;
@@ -14,12 +17,17 @@ export type JournalEntry = {
   date: string;
   description?: string;
   lines: JournalLine[];
+  // jurnal contoh: rincian angka model laporan, tidak diposting ulang
+  contoh?: boolean;
 };
 
 const STORAGE_KEY = "journals_v1";
 
 type JournalCtx = {
+  /** jurnal yang diinput pengguna (tersimpan) */
   entries: JournalEntry[];
+  /** jurnal pengguna + jurnal contoh, terurut dari terbaru */
+  semuaJurnal: JournalEntry[];
   addEntry: (e: JournalEntry) => void;
   // expose the React state setter so consumers can update entries with a functional update
   setEntries: React.Dispatch<React.SetStateAction<JournalEntry[]>>;
@@ -31,7 +39,7 @@ type JournalCtx = {
       quantity: number;
       unitCost?: number;
     }[],
-    opts?: { description?: string },
+    opts?: { description?: string; tax?: number },
   ) => void;
 };
 
@@ -53,27 +61,28 @@ export function JournalProvider({ children }: { children: React.ReactNode }) {
     } catch {}
   }, [entries]);
 
+  // Jurnal contoh 3 tahun untuk entitas akun yang sedang masuk
+  const { role, cabang } = useAccount();
+  const entitas = role === "induk" ? KONSOLIDASI : cabang;
+  const jurnalContoh = useMemo(() => buatJurnalContoh(entitas, accounts), [entitas, accounts]);
+  const semuaJurnal = useMemo(
+    () => [...entries, ...jurnalContoh].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)),
+    [entries, jurnalContoh],
+  );
+
   const addEntry = (e: JournalEntry) => setEntriesState((s) => [e, ...s]);
 
-  const findCashAccount = (): Account | undefined => {
-    const byName = accounts.find((a) => a.name.toLowerCase().includes("kas"));
-    if (byName) return byName;
-    return accounts.find(
-      (a) => a.target && a.target.field && a.target.field.includes("kas"),
-    );
-  };
+  const byCode = (code: string) => accounts.find((a) => a.code === code);
 
-  const findRevenueAccount = (): Account | undefined => {
-    const byType = accounts.find((a) => a.type === "revenue");
-    if (byType) return byType;
-    const byName = accounts.find(
-      (a) =>
-        a.name.toLowerCase().includes("penjualan") ||
-        a.name.toLowerCase().includes("pendapatan"),
-    );
-    if (byName) return byName;
-    return undefined;
-  };
+  const findCashAccount = (): Account | undefined =>
+    byCode("1.1.1.01") ||
+    accounts.find((a) => a.type === "asset" && a.name.toLowerCase().includes("kas"));
+
+  // Penjualan umum dicatat ke pendapatan non-anggota (akun "Anggota" khusus koperasi)
+  const findRevenueAccount = (): Account | undefined =>
+    byCode("4.2.1.01") ||
+    accounts.find((a) => a.type === "revenue" && a.name.toLowerCase().includes("penjualan")) ||
+    accounts.find((a) => a.type === "revenue");
 
   const addSaleFromCart = (
     cart: {
@@ -83,9 +92,10 @@ export function JournalProvider({ children }: { children: React.ReactNode }) {
       quantity: number;
       unitCost?: number;
     }[],
-    opts: { description?: string } = {},
+    opts: { description?: string; tax?: number } = {},
   ) => {
     const total = cart.reduce((s: number, it) => s + it.price * it.quantity, 0);
+    const tax = Math.round(opts.tax || 0);
     const totalCogs = cart.reduce(
       (s: number, it) => s + (it.unitCost || 0) * it.quantity,
       0,
@@ -107,12 +117,16 @@ export function JournalProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    const ppnAcc = byCode("2.1.4.01");
+    const pakaiPpn = tax > 0 && !!ppnAcc;
+
+    // Kas diterima = harga jual + PPN; PPN dicatat sebagai utang (PPN Keluaran)
     const lines: JournalLine[] = [
       {
         id: `l-${Date.now()}-d`,
         side: "debit",
         accountId: cashAcc.id,
-        amount: total,
+        amount: total + (pakaiPpn ? tax : 0),
       },
       {
         id: `l-${Date.now()}-c`,
@@ -121,6 +135,14 @@ export function JournalProvider({ children }: { children: React.ReactNode }) {
         amount: total,
       },
     ];
+    if (pakaiPpn) {
+      lines.push({
+        id: `l-${Date.now()}-ppn`,
+        side: "credit",
+        accountId: ppnAcc!.id,
+        amount: tax,
+      });
+    }
 
     if (totalCogs > 0 && cogsAcc && invAcc) {
       lines.push({
@@ -151,6 +173,7 @@ export function JournalProvider({ children }: { children: React.ReactNode }) {
     <ctx.Provider
       value={{
         entries,
+        semuaJurnal,
         addEntry,
         setEntries: setEntriesState,
         addSaleFromCart,
@@ -163,6 +186,6 @@ export function JournalProvider({ children }: { children: React.ReactNode }) {
 
 export function useJournal() {
   const c = useContext(ctx);
-  if (!c) throw new Error("useJournal must be used within JournalProvider");
+  if (!c) throw new Error("useJournal harus dipakai di dalam JournalProvider");
   return c;
 }

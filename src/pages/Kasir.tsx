@@ -1,7 +1,13 @@
 import { useState, useEffect } from "react";
-import { Search, Plus, Minus, Trash2, ShoppingCart, X } from "lucide-react";
+import { Search, Plus, Minus, Trash2, ShoppingCart, X, PackagePlus } from "lucide-react";
 import { useInventory } from "../context/InventoryContext";
 import { useJournal } from "../context/JournalContext";
+import { useToast } from "../context/ToastContext";
+import { useBahanBaku } from "../context/BahanBakuContext";
+import { usePageTitle } from "../hooks/usePageTitle";
+import ProductImage from "../components/ProductImage";
+import ProductFormModal from "../components/ProductFormModal";
+import { PRODUK_KOSONG } from "../components/produkForm";
 
 interface CartItem {
   id: string;
@@ -24,10 +30,16 @@ interface Order {
 }
 
 export default function Kasir() {
-  const { products, decrementStock, getById } = useInventory();
+  usePageTitle("Kasir POS");
+  const { products, decrementStock, incrementStock, getById, addProduct } = useInventory();
+  const { toast } = useToast();
+  const { pakaiUntukPenjualan } = useBahanBaku();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeCategory] = useState("Semua");
+  const [activeCategory, setActiveCategory] = useState("Semua");
+  const [tambahOpen, setTambahOpen] = useState(0); // >0 = terbuka, nilainya jadi key form
+  const [namaBaru, setNamaBaru] = useState("");
+  const kategori = ["Semua", ...Array.from(new Set(products.map((p) => p.category)))];
 
   const filteredProducts = products.filter((p) => {
     const matchCategory =
@@ -74,14 +86,9 @@ export default function Kasir() {
       const ok = decrementStock(id, delta);
       if (!ok) return;
     } else if (delta < 0) {
-      // return stock when decreasing quantity
-      // simple approach: increase product qty
-      const prod = getById(id);
-      if (prod) {
-        // increase back
-        // unsafe: directly calling update via DOM; instead use updateProduct if available in context
-        // but we can use decrementStock with negative qty by calling updateProduct; keep simple: not adjusting here
-      }
+      // jumlah di keranjang dikurangi: kembalikan stoknya
+      const item = cart.find((c) => c.id === id);
+      if (item) incrementStock(id, Math.min(item.quantity, -delta));
     }
 
     setCart((prev) =>
@@ -97,7 +104,11 @@ export default function Kasir() {
     );
   };
 
-  const clearCart = () => setCart([]);
+  // Mengosongkan keranjang sebelum dibayar mengembalikan stok
+  const clearCart = () => {
+    cart.forEach((item) => incrementStock(item.id, item.quantity));
+    setCart([]);
+  };
 
   const subtotal = cart.reduce(
     (sum, item) => sum + item.price * item.quantity,
@@ -322,41 +333,17 @@ export default function Kasir() {
 
   return (
     <>
-      {/* Orders navigator (below navbar) */}
-      <div className="bg-white border-b p-2 shadow-sm z-20">
-        <div className="max-w-7xl mx-auto px-4 flex items-center gap-2">
-          <button
-            onClick={() => {
-              setIsOrdersPanelOpen(true);
-              setOrdersTab("incoming");
-            }}
-            className="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 hover:bg-gray-200"
-          >
-            Pesanan Masuk ({incomingCount})
-          </button>
-          <button
-            onClick={() => {
-              setIsOrdersPanelOpen(true);
-              setOrdersTab("completed");
-            }}
-            className="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 hover:bg-gray-200"
-          >
-            Sudah Selesai ({completedCount})
-          </button>
-        </div>
-      </div>
-
-      <div className="flex flex-col md:flex-row h-[calc(100vh-theme(spacing.16))] bg-gray-50 overflow-hidden -m-4">
+      <div className="card-elegant flex flex-col md:flex-row h-[calc(100vh-9.5rem)] min-h-[560px] bg-gray-50 overflow-hidden">
         {/* Left Area: Products */}
         <div className="flex-1 flex flex-col h-full overflow-hidden">
           {/* Top Bar: Search & Categories */}
-          <div className="bg-white p-4 border-b flex flex-col sm:flex-row sm:items-center gap-4 shadow-sm z-10">
-            <div className="flex items-center gap-4 w-full">
+          <div className="bg-white p-4 border-b z-10">
+            <div className="flex flex-wrap items-center gap-3 w-full">
               <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                 <ShoppingCart className="w-6 h-6 text-primary" />
                 Kasir / POS
               </h1>
-              <div className="flex-1 relative">
+              <div className="flex-1 min-w-[180px] relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
                   type="text"
@@ -366,8 +353,55 @@ export default function Kasir() {
                   className="w-full pl-10 pr-4 py-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-primary/50"
                 />
               </div>
+              <div className="flex items-center gap-1 rounded-full bg-gray-100 p-1">
+                <button
+                  onClick={() => {
+                    setIsOrdersPanelOpen(true);
+                    setOrdersTab("incoming");
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-white"
+                >
+                  Pesanan Masuk
+                  <span className={`rounded-full px-1.5 text-[11px] ${incomingCount ? "bg-amber-500 text-white" : "bg-gray-200 text-gray-600"}`}>{incomingCount}</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setIsOrdersPanelOpen(true);
+                    setOrdersTab("completed");
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-white"
+                >
+                  Sudah Selesai
+                  <span className="rounded-full bg-gray-200 px-1.5 text-[11px] text-gray-600">{completedCount}</span>
+                </button>
+              </div>
+              <button
+                onClick={() => {
+                  setNamaBaru("");
+                  setTambahOpen((n) => n + 1);
+                }}
+                className="shrink-0 inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white hover:opacity-95"
+              >
+                <PackagePlus className="w-4 h-4" />
+                <span className="hidden sm:inline">Tambah Produk</span>
+              </button>
             </div>
           </div>
+          {kategori.length > 2 && (
+            <div className="bg-white px-4 py-2 border-b flex gap-2 overflow-x-auto">
+              {kategori.map((k) => (
+                <button
+                  key={k}
+                  onClick={() => setActiveCategory(k)}
+                  className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${
+                    activeCategory === k ? "bg-primary text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  {k}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Product Grid */}
           <div className="flex-1 overflow-y-auto p-4">
@@ -375,14 +409,17 @@ export default function Kasir() {
               {filteredProducts.map((product) => (
                 <div
                   key={product.id}
-                  onClick={() => addToCart(product.id)}
-                  className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden cursor-pointer hover:shadow-md transition-shadow active:scale-95 transform"
+                  onClick={() => {
+                    if (product.qty <= 0) toast(`Stok ${product.name} habis`, "peringatan");
+                    addToCart(product.id);
+                  }}
+                  className={`card-elegant hover-lift overflow-hidden cursor-pointer active:scale-95 ${product.qty <= 0 ? "opacity-50" : ""}`}
                 >
                   <div className="aspect-square bg-gray-100 relative">
-                    <img
+                    <ProductImage
                       src={product.image}
-                      alt={product.name}
-                      className="w-full h-full object-cover"
+                      name={product.name}
+                      className="w-full h-full"
                     />
                     <div className="absolute top-2 right-2 bg-white/90 px-2 py-0.5 rounded-md text-xs font-semibold text-primary backdrop-blur-sm shadow-sm">
                       {product.category}
@@ -406,6 +443,17 @@ export default function Kasir() {
               <div className="flex flex-col items-center justify-center h-full text-gray-500 gap-2">
                 <Search className="w-12 h-12 text-gray-300" />
                 <p>Produk tidak ditemukan</p>
+                {searchQuery.trim() && (
+                  <button
+                    onClick={() => {
+                      setNamaBaru(searchQuery.trim());
+                      setTambahOpen((n) => n + 1);
+                    }}
+                    className="mt-2 inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white hover:opacity-95"
+                  >
+                    <PackagePlus className="w-4 h-4" /> Tambah "{searchQuery.trim()}" sebagai produk baru
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -439,10 +487,10 @@ export default function Kasir() {
             ) : (
               cart.map((item) => (
                 <div key={item.id} className="flex gap-3 bg-white">
-                  <img
+                  <ProductImage
                     src={item.image}
-                    alt={item.name}
-                    className="w-16 h-16 rounded-lg object-cover border"
+                    name={item.name}
+                    className="w-16 h-16 rounded-lg border shrink-0"
                   />
                   <div className="flex-1 flex flex-col justify-between">
                     <div>
@@ -576,10 +624,10 @@ export default function Kasir() {
               ) : (
                 cart.map((item) => (
                   <div key={item.id} className="flex gap-3 bg-white">
-                    <img
+                    <ProductImage
                       src={item.image}
-                      alt={item.name}
-                      className="w-16 h-16 rounded-lg object-cover border"
+                      name={item.name}
+                      className="w-16 h-16 rounded-lg border shrink-0"
                     />
                     <div className="flex-1 flex flex-col justify-between">
                       <div>
@@ -679,9 +727,16 @@ export default function Kasir() {
                   try {
                     addSaleFromCart(cart, {
                       description: "Penjualan via Kasir",
+                      tax: Math.round(tax),
                     });
                   } catch (e) {
                     console.error(e);
+                  }
+
+                  // bahan baku berkurang sesuai resep tiap produk
+                  const menipis = pakaiUntukPenjualan(cart.map((c) => ({ name: c.name, quantity: c.quantity })));
+                  if (menipis.length > 0) {
+                    toast(`Bahan hampir habis: ${menipis.map((b) => b.nama).join(", ")}. Cek tab Persediaan.`, "peringatan");
                   }
 
                   if (cart.length > 0) {
@@ -689,8 +744,10 @@ export default function Kasir() {
                     setOrders((prev) => [order, ...prev]);
                   }
 
-                  clearCart();
+                  // stok sudah berkurang saat barang masuk keranjang
+                  setCart([]);
                   setIsPaymentOpen(false);
+                  toast("Pembayaran tercatat dan jurnal penjualan dibuat");
                 }}
               >
                 Saya sudah bayar
@@ -718,7 +775,7 @@ export default function Kasir() {
             className="absolute inset-0 bg-black/40"
             onClick={() => setIsOrdersPanelOpen(false)}
           />
-          <div className="absolute right-0 top-0 h-full w-full max-w-lg bg-white shadow-2xl p-4">
+          <div className="absolute right-0 top-0 h-full w-full max-w-lg bg-white shadow-2xl p-4 flex flex-col">
             <div className="flex items-center justify-between mb-3">
               <div className="flex gap-2">
                 <button
@@ -800,6 +857,24 @@ export default function Kasir() {
           </div>
         </div>
       )}
+      <ProductFormModal
+        key={tambahOpen}
+        open={tambahOpen > 0}
+        title="Tambah Produk"
+        initial={{ ...PRODUK_KOSONG, name: namaBaru, category: products[0]?.category ?? "" }}
+        submitLabel="Simpan Produk"
+        onClose={() => {
+          setTambahOpen(0);
+          setNamaBaru("");
+        }}
+        onSubmit={(p) => {
+          addProduct(p);
+          setTambahOpen(0);
+          setNamaBaru("");
+          setSearchQuery("");
+          toast(`${p.name} ditambahkan ke daftar produk`);
+        }}
+      />
     </>
   );
 }

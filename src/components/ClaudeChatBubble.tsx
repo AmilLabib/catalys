@@ -11,7 +11,7 @@ export default function ClaudeChatBubble() {
   const [chatHistory, setChatHistory] = useState([
     {
       role: "assistant",
-      content: "Halo! Saya arthami bot. Ada yang bisa saya bantu hari ini?",
+      content: "Halo! Saya catalys bot. Ada yang bisa saya bantu hari ini?",
     },
   ]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -71,7 +71,7 @@ export default function ClaudeChatBubble() {
       const payload = {
         model: "claude-3-5-sonnet-20241022",
         max_tokens: 1024,
-        system: `Kamu adalah AI Assistant untuk aplikasi bernama 'Arthami', sebuah platform manajemen keuangan dan operasional untuk UMKM. Selalu jawab menggunakan bahasa indonesia tanpa menggunakan emoji atau karakter untuk menebalkan, memiringkan atau mengubah warna teks. 
+        system: `Kamu adalah AI Assistant untuk aplikasi bernama 'Catalys', sebuah platform manajemen keuangan dan operasional untuk UMKM. Selalu jawab menggunakan bahasa indonesia tanpa menggunakan emoji atau karakter untuk menebalkan, memiringkan atau mengubah warna teks. 
         
 BERIKUT ADALAH PENGETAHUAN TENTANG WEBSITE INI YANG HARUS KAMU TAHU:
 1. Halaman Dashboard: Menampilkan ringkasan total pemasukan, pengeluaran, dan profit.
@@ -114,7 +114,7 @@ Jika user bertanya "ini halaman apa?" atau "bagaimana cara pakainya?", atau memi
       const replyText =
         response?.content?.[0]?.type === "text"
           ? response.content[0].text
-          : "Response received.";
+          : "Respons diterima.";
 
       setChatHistory((prev) => [
         ...prev,
@@ -157,7 +157,7 @@ Jika user bertanya "ini halaman apa?" atau "bagaimana cara pakainya?", atau memi
                 Bingung memakai aplikasi ini?
               </p>
               <p className="text-xs text-gray-500 mt-1">
-                Yuk, tanya arthami bot!
+                Yuk, tanya catalys bot!
               </p>
             </div>
             <button
@@ -185,7 +185,7 @@ Jika user bertanya "ini halaman apa?" atau "bagaimana cara pakainya?", atau memi
                 <MessageCircle size={18} />
               </div>
               <div>
-                <h3 className="font-semibold text-sm">arthami bot</h3>
+                <h3 className="font-semibold text-sm">catalys bot</h3>
                 <p className="text-xs text-white/80">Powered by Claude</p>
               </div>
             </div>
@@ -254,7 +254,7 @@ Jika user bertanya "ini halaman apa?" atau "bagaimana cara pakainya?", atau memi
             ? "bg-gray-200 text-gray-600 scale-90"
             : "bg-primary text-white shadow-lg hover:shadow-xl hover:-translate-y-1"
         } w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 z-50`}
-        aria-label="Toggle Chat"
+        aria-label="Buka atau tutup obrolan"
       >
         {isOpen ? <X size={24} /> : <MessageCircle size={24} />}
       </button>
