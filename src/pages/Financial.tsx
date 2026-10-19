@@ -19,7 +19,6 @@ import {
   Cell,
 } from "recharts";
 import {
-  Calendar,
   FileSpreadsheet,
   FileText,
   FileEdit,
@@ -34,7 +33,9 @@ import {
   Lightbulb,
 } from "lucide-react";
 import { usePageTitle } from "../hooks/usePageTitle";
-import { useEntitasSendiri, useLaporan } from "../hooks/useLaporan";
+import { useEntitasSendiri, useLaporanRentang } from "../hooks/useLaporan";
+import PilihPeriode from "../components/PilihPeriode";
+import { PRESET_PERIODE } from "../utils/periode";
 import { useAccount } from "../context/AccountContext";
 import { useToast } from "../context/ToastContext";
 import { useJournal } from "../context/JournalContext";
@@ -47,17 +48,15 @@ import {
   KONSOLIDASI,
   LABA_RUGI,
   NERACA,
-  TAHUN_TERSEDIA,
-  TAHUN_BERJALAN,
   formatRp,
   formatRpSingkat,
-  hitungLaporan,
+  hitungLaporanRentang,
   labelPeriode,
+  formatTanggal,
 } from "../data/laporan";
 import { susunCalk, susunTabel, type Baris } from "../data/laporanTabel";
 import { eksporExcel, eksporPdf } from "../utils/eksporLaporan";
-import { lockedMessage } from "../config/access";
-import { BRANCHES } from "../config/access";
+import { BRANCHES, pesanPeran } from "../config/access";
 
 const WARNA = ["#012a3d", "#2f6b8f", "#5487ab", "#9cb2c1", "#0f766e", "#c2410c", "#7c3aed", "#be123c", "#64748b", "#ca8a04"];
 
@@ -77,14 +76,18 @@ function tumbuh(now: number, before: number) {
 export default function Financial() {
   usePageTitle("Laporan Keuangan");
   const navigate = useNavigate();
-  const { role, canSee, canUse, pakaiKuota, quotaRemaining, profile } = useAccount();
+  const { role, alasanTerkunci, pakaiKuota, quotaRemaining, profile } = useAccount();
+  const kunciAudit = alasanTerkunci("audit");
   const { toast } = useToast();
   const sendiri = useEntitasSendiri();
 
-  const [tahun, setTahun] = useState(TAHUN_BERJALAN);
+  // periode laporan: default tahun berjalan (1 Januari s.d. hari ini)
+  const [rentang, setRentang] = useState({ dari: PRESET_PERIODE[0].dari, sampai: PRESET_PERIODE[0].sampai });
   const [entitas, setEntitas] = useState(sendiri);
   const [tab, setTab] = useState(0);
-  const lap = useLaporan(tahun, entitas);
+  const lap = useLaporanRentang(rentang.dari, rentang.sampai, entitas);
+  const periode = lap.periode!;
+  const [labelIni, labelLalu] = periode.kolomPeriode;
   const tabel = useMemo(() => susunTabel(lap), [lap]);
   const calk = useMemo(() => susunCalk(lap, profile.namaUsaha), [lap, profile.namaUsaha]);
 
@@ -102,7 +105,7 @@ export default function Financial() {
     try {
       if (jenis === "excel") await eksporExcel(lap, profile.namaUsaha);
       else await eksporPdf(lap, profile.namaUsaha);
-      toast(`Laporan ${lap.tahun} berhasil diekspor ke ${jenis === "excel" ? "Excel" : "PDF"}`);
+      toast(`Laporan ${periode.label} berhasil diekspor ke ${jenis === "excel" ? "Excel" : "PDF"}`);
     } catch (e) {
       console.error(e);
       toast("Ekspor gagal. Coba lagi.", "peringatan");
@@ -147,7 +150,7 @@ export default function Financial() {
     { aktivitas: "Pendanaan", ini: lap.arusKas.totalPendanaan, lalu: lap.arusKasLalu.totalPendanaan },
   ];
 
-  // saldo kas akhir tiap bulan, dari kas awal tahun ditambah arus kas bersih bulanan
+  // saldo kas akhir tiap kelompok waktu, dari kas awal periode ditambah arus kas bersihnya
   const saldoKasBulanan = lap.bulanan.reduce<{ bulan: string; saldo: number }[]>((acc, b) => {
     const sebelum = acc.length ? acc[acc.length - 1].saldo : lap.arusKas.kasAwal;
     acc.push({ bulan: b.bulan, saldo: sebelum + b.kasMasuk - b.kasKeluar });
@@ -161,9 +164,9 @@ export default function Financial() {
     if (entitas !== KONSOLIDASI) return [];
     return BRANCHES.map((b) => ({
       name: b,
-      value: hitungLaporan(b, tahun, [], accounts).ringkasan.totalPendapatan,
+      value: hitungLaporanRentang(b, periode.dari, periode.sampai, [], accounts).ringkasan.totalPendapatan,
     }));
-  }, [entitas, tahun, accounts]);
+  }, [entitas, periode.dari, periode.sampai, accounts]);
 
   // ---------- Insight ----------
   const rasio = {
@@ -172,10 +175,10 @@ export default function Financial() {
     lancar: R.totalAsetLancar / (R.totalLiabilitasPendek || 1),
     der: R.totalLiabilitas / (R.totalEkuitas || 1),
     roa: R.labaBersih / (R.totalAset || 1),
-    perputaranPersediaan: (lap.lr.hpp || 0) / (lap.neraca.persediaan || 1),
+    // disetahunkan agar sebanding untuk periode berapa pun panjangnya
+    perputaranPersediaan: ((lap.lr.hpp || 0) * (365 / periode.hari)) / (lap.neraca.persediaan || 1),
   };
-  const faktor = 12 / lap.bulanBerjalan;
-  const tumbuhPendapatan = tumbuh(R.totalPendapatan * faktor, RL.totalPendapatan);
+  const tumbuhPendapatan = tumbuh(R.totalPendapatan, RL.totalPendapatan);
   const bebanTerbesar = komposisiBeban[0];
 
   const insight: { judul: string; nilai: string; status: "baik" | "perhatian" | "waspada"; teks: string }[] = [
@@ -207,7 +210,7 @@ export default function Financial() {
       judul: "Pertumbuhan pendapatan",
       nilai: tumbuhPendapatan === null ? "—" : persen(tumbuhPendapatan),
       status: tumbuhPendapatan === null || tumbuhPendapatan >= 0.05 ? "baik" : tumbuhPendapatan >= 0 ? "perhatian" : "waspada",
-      teks: lap.berjalan ? "Dibandingkan secara disetahunkan dengan tahun lalu." : "Dibandingkan dengan tahun sebelumnya.",
+      teks: `Dibandingkan dengan periode yang sama tahun lalu (${labelLalu}).`,
     },
     {
       judul: "Perputaran persediaan",
@@ -244,66 +247,11 @@ export default function Financial() {
 
   return (
     <div className="space-y-6">
-      {/* Kepala halaman: entitas, periode, ekspor */}
-      <div className="flex flex-col xl:flex-row xl:items-end xl:justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-primary">Laporan Keuangan</h2>
-          <p className="text-sm text-gray-500">
-            Format SAK EMKM · {lap.entitas} · {labelPeriode(lap)}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {role === "induk" && (
-            <label className="inline-flex items-center gap-2 rounded-xl border bg-white px-3 py-2 text-sm shadow-sm">
-              <Building2 className="w-4 h-4 text-gray-500" />
-              <select value={entitas} onChange={(e) => setEntitas(e.target.value)} className="bg-transparent outline-none">
-                {ENTITAS.map((x) => (
-                  <option key={x} value={x}>
-                    {x === KONSOLIDASI ? "Konsolidasi (semua cabang)" : x}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          <label className="inline-flex items-center gap-2 rounded-xl border bg-white px-3 py-2 text-sm shadow-sm" title="Pilih periode tahun">
-            <Calendar className="w-4 h-4 text-primary" />
-            <span className="text-gray-500">Periode</span>
-            <select value={tahun} onChange={(e) => setTahun(Number(e.target.value))} className="bg-transparent font-semibold text-primary outline-none">
-              {[...TAHUN_TERSEDIA].reverse().map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                  {t === TAHUN_BERJALAN ? " (berjalan)" : ""}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="inline-flex items-center gap-2 rounded-xl border bg-white px-2 py-1.5 shadow-sm">
-            <span className="pl-1 text-sm text-gray-500">Ekspor</span>
-            <button
-              onClick={() => ekspor("excel")}
-              disabled={mengekspor !== null || sisaEkspor === 0}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-600 px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5" />
-              {mengekspor === "excel" ? "Menyiapkan..." : "Excel"}
-            </button>
-            <button
-              onClick={() => ekspor("pdf")}
-              disabled={mengekspor !== null || sisaEkspor === 0}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-red-600 px-2.5 py-1 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
-            >
-              <FileText className="w-3.5 h-3.5" />
-              {mengekspor === "pdf" ? "Menyiapkan..." : "PDF"}
-            </button>
-            <QuotaBadge kuota="eksporLaporan" />
-          </div>
-        </div>
+      {/* Kepala halaman */}
+      <div>
+        <h2 className="text-2xl font-bold text-primary">Laporan Keuangan</h2>
+        <p className="text-sm text-gray-500">Catat transaksi, susun laporan format SAK EMKM, lalu analisis hasilnya.</p>
       </div>
-      {sisaEkspor === 0 && (
-        <Link to="/profil?tab=paket" className="-mt-4 block text-right text-xs font-medium text-primary underline">
-          Kuota ekspor habis. Upgrade paket untuk ekspor tanpa batas.
-        </Link>
-      )}
 
       {/* ===== Bagian 1: pencatatan transaksi ===== */}
       <PemisahBagian
@@ -355,6 +303,65 @@ export default function Financial() {
         teks={`Hasil otomatis dari jurnal · ${lap.entitas} · ${labelPeriode(lap)}`}
       />
 
+      {/* Pengaturan laporan: entitas, periode, ekspor */}
+      <section className="card-elegant p-4 grid grid-cols-1 lg:grid-cols-[auto_1fr_auto] gap-4 lg:items-end">
+        <div>
+          <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Entitas laporan</p>
+          {role === "induk" ? (
+            <label className="inline-flex items-center gap-2 rounded-xl border bg-white px-3 py-2 text-sm shadow-sm">
+              <Building2 className="w-4 h-4 text-gray-500" />
+              <select value={entitas} onChange={(e) => setEntitas(e.target.value)} className="bg-transparent font-semibold text-primary outline-none">
+                {ENTITAS.map((x) => (
+                  <option key={x} value={x}>
+                    {x === KONSOLIDASI ? "Konsolidasi (semua cabang)" : x}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <span
+              className="inline-flex items-center gap-2 rounded-xl border bg-gray-50 px-3 py-2 text-sm text-gray-500 cursor-not-allowed"
+              title={pesanPeran(["induk"])}
+            >
+              <Building2 className="w-4 h-4" /> {sendiri}
+              <Lock className="w-3.5 h-3.5" />
+            </span>
+          )}
+        </div>
+        <div>
+          <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Periode</p>
+          <PilihPeriode dari={rentang.dari} sampai={rentang.sampai} onUbah={(dari, sampai) => setRentang({ dari, sampai })} />
+        </div>
+        <div>
+          <p className="mb-1.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+            Ekspor laporan <QuotaBadge kuota="eksporLaporan" />
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => ekspor("excel")}
+              disabled={mengekspor !== null || sisaEkspor === 0}
+              className="inline-flex items-center gap-1.5 rounded-xl border-2 border-emerald-600 bg-white px-3 py-1.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              {mengekspor === "excel" ? "Menyiapkan..." : "Excel"}
+            </button>
+            <button
+              onClick={() => ekspor("pdf")}
+              disabled={mengekspor !== null || sisaEkspor === 0}
+              className="inline-flex items-center gap-1.5 rounded-xl border-2 border-red-600 bg-white px-3 py-1.5 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+            >
+              <FileText className="w-4 h-4" />
+              {mengekspor === "pdf" ? "Menyiapkan..." : "PDF"}
+            </button>
+          </div>
+          {sisaEkspor === 0 && (
+            <Link to="/profil?tab=paket" className="mt-1 block text-xs font-medium text-primary underline">
+              Kuota habis. Upgrade untuk ekspor tanpa batas.
+            </Link>
+          )}
+        </div>
+      </section>
+
       {/* KPI */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {kpi.map(({ label, nilai, lalu, icon: Icon }, i) => {
@@ -371,8 +378,8 @@ export default function Financial() {
                 <AngkaBerjalan nilai={nilai} format={formatRpSingkat} />
               </p>
               <p className="relative text-xs text-white/70 mt-1">
-                Tahun lalu {formatRpSingkat(lalu)}
-                {g !== null && !lap.berjalan && (
+                Periode lalu {formatRpSingkat(lalu)}
+                {g !== null && (
                   <span className={g >= 0 ? "text-emerald-200" : "text-rose-200"}> · {g >= 0 ? "+" : ""}{persen(g)}</span>
                 )}
               </p>
@@ -402,7 +409,7 @@ export default function Financial() {
             <p className="font-bold text-gray-900">{profile.namaUsaha}</p>
             <p className="font-semibold text-primary">{tab < tabel.length ? tabel[tab].judul : "Catatan atas Laporan Keuangan"}</p>
             <p className="text-xs text-gray-500">
-              {lap.entitas} · {tab === 0 ? `Per ${lap.berjalan ? "hari ini" : `31 Desember ${tahun}`}` : `Untuk periode ${labelPeriode(lap)}`} · (dalam Rupiah)
+              {lap.entitas} · {tab === 0 ? `Per ${formatTanggal(periode.sampai, true)}` : `Untuk periode ${labelPeriode(lap)}`} · (dalam Rupiah)
             </p>
           </div>
 
@@ -437,23 +444,29 @@ export default function Financial() {
               <p className="text-sm text-gray-500">Rasio keuangan utama dan apa artinya bagi usaha Anda.</p>
             </div>
           </div>
-          {canSee("audit") &&
-            (canUse("audit") ? (
-              <button
-                onClick={() => navigate("/data-driven")}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-95"
-              >
-                <Gauge className="w-4 h-4" /> Cek Performa <ArrowRight className="w-4 h-4" />
-              </button>
-            ) : (
-              <Link
-                to="/profil?tab=paket"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-500"
-                title={lockedMessage("bisnis")}
-              >
-                <Lock className="w-4 h-4" /> Cek Performa · {lockedMessage("bisnis")}
-              </Link>
-            ))}
+          {!kunciAudit ? (
+            <button
+              onClick={() => navigate("/data-driven")}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-95"
+            >
+              <Gauge className="w-4 h-4" /> Cek Performa <ArrowRight className="w-4 h-4" />
+            </button>
+          ) : kunciAudit.jenis === "paket" ? (
+            <Link
+              to="/profil?tab=paket"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-500"
+              title={kunciAudit.pesan}
+            >
+              <Lock className="w-4 h-4" /> Cek Performa · {kunciAudit.pesan}
+            </Link>
+          ) : (
+            <span
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-500 cursor-not-allowed"
+              title={kunciAudit.pesan}
+            >
+              <Lock className="w-4 h-4" /> Cek Performa · {kunciAudit.pesan}
+            </span>
+          )}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {insight.map((x) => (
@@ -519,7 +532,7 @@ export default function Financial() {
 
         <KartuGrafik
           judul="Perbandingan dengan Tahun Lalu"
-          sub={`${tahun} vs ${tahun - 1}${lap.berjalan ? " (tahun berjalan belum penuh)" : ""}`}
+          sub={`${labelIni} vs ${labelLalu}`}
         >
           <BarChart data={perbandingan}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef2f6" />
@@ -527,8 +540,8 @@ export default function Financial() {
             <YAxis width={56} tickLine={false} axisLine={false} fontSize={11} tickFormatter={sumbuRp} />
             <Tooltip formatter={rpTooltip} />
             <Legend wrapperStyle={{ fontSize: 12 }} />
-            <Bar dataKey="ini" name={String(tahun)} fill="#012a3d" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="lalu" name={String(tahun - 1)} fill="#9cb2c1" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="ini" name={labelIni} fill="#012a3d" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="lalu" name={labelLalu} fill="#9cb2c1" radius={[4, 4, 0, 0]} />
           </BarChart>
         </KartuGrafik>
 
@@ -579,8 +592,8 @@ export default function Financial() {
             <Tooltip formatter={rpTooltip} />
             <Legend wrapperStyle={{ fontSize: 12 }} />
             <ReferenceLine y={0} stroke="#94a3b8" />
-            <Bar dataKey="ini" name={String(tahun)} fill="#2f6b8f" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="lalu" name={String(tahun - 1)} fill="#9cb2c1" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="ini" name={labelIni} fill="#2f6b8f" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="lalu" name={labelLalu} fill="#9cb2c1" radius={[4, 4, 0, 0]} />
           </BarChart>
         </KartuGrafik>
 

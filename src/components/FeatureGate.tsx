@@ -1,11 +1,11 @@
-import { Link, Navigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Lock } from "lucide-react";
 import { useAccount } from "../context/AccountContext";
 import { usePageTitle } from "../hooks/usePageTitle";
-import { FEATURES, lockedMessage, type FeatureKey } from "../config/access";
+import { FEATURES, type FeatureKey } from "../config/access";
 
-// Penjaga rute: fitur di luar peran diarahkan ke Beranda, fitur di luar
-// paket menampilkan layar terkunci dengan tombol upgrade.
+// Penjaga rute: fitur di luar peran atau paket menampilkan layar terkunci.
+// Untuk paket ada tombol upgrade; untuk peran diarahkan kembali ke Beranda.
 export default function FeatureGate({
   feature,
   children,
@@ -13,13 +13,13 @@ export default function FeatureGate({
   feature: FeatureKey;
   children: React.ReactNode;
 }) {
-  const { canSee, canUse } = useAccount();
-  if (!canSee(feature)) return <Navigate to="/dashboard" replace />;
-  if (canUse(feature)) return <>{children}</>;
-  return <Terkunci feature={feature} />;
+  const { alasanTerkunci } = useAccount();
+  const kunci = alasanTerkunci(feature);
+  if (!kunci) return <>{children}</>;
+  return <Terkunci feature={feature} pesan={kunci.pesan} peran={kunci.jenis === "peran"} />;
 }
 
-function Terkunci({ feature }: { feature: FeatureKey }) {
+function Terkunci({ feature, pesan, peran }: { feature: FeatureKey; pesan: string; peran: boolean }) {
   const def = FEATURES[feature];
   usePageTitle(def.label);
   return (
@@ -28,12 +28,12 @@ function Terkunci({ feature }: { feature: FeatureKey }) {
         <Lock className="w-6 h-6 text-gray-500" />
       </div>
       <h2 className="mt-4 text-xl font-bold text-primary">{def.label} terkunci</h2>
-      <p className="mt-2 text-sm text-gray-600">{lockedMessage(def.minPlan)}.</p>
+      <p className="mt-2 text-sm text-gray-600">{pesan}.</p>
       <Link
-        to="/profil?tab=paket"
+        to={peran ? "/dashboard" : "/profil?tab=paket"}
         className="mt-6 inline-flex items-center justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:opacity-95"
       >
-        Upgrade Paket
+        {peran ? "Kembali ke Beranda" : "Upgrade Paket"}
       </Link>
     </div>
   );

@@ -20,11 +20,12 @@ function pos(defs: PosDef[], cur: Record<string, number>, prev: Record<string, n
 
 export function susunTabel(lap: Laporan): Tabel[] {
   const t = lap.tahun;
-  const kolomNeraca: [string, string] = [
-    lap.berjalan ? `Posisi ${t} (berjalan)` : `31 Des ${t}`,
-    `31 Des ${t - 1}`,
-  ];
-  const kolomPeriode: [string, string] = [lap.berjalan ? `${t} (berjalan)` : String(t), String(t - 1)];
+  const kolomNeraca: [string, string] = lap.periode
+    ? lap.periode.kolomPosisi
+    : [lap.berjalan ? `Posisi ${t} (berjalan)` : `31 Des ${t}`, `31 Des ${t - 1}`];
+  const kolomPeriode: [string, string] = lap.periode
+    ? lap.periode.kolomPeriode
+    : [lap.berjalan ? `${t} (berjalan)` : String(t), String(t - 1)];
   const n = lap.neraca;
   const p = lap.neracaLalu;
   const R = lap.ringkasan;

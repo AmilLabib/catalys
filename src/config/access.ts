@@ -1,6 +1,6 @@
 // Aturan akses fitur: peran akun (induk/cabang) dan paket langganan.
-// Fitur yang tidak sesuai peran disembunyikan, fitur yang belum termasuk
-// paket ditampilkan abu-abu dengan keterangan paket minimal.
+// Semua fitur tetap terlihat. Fitur di luar peran atau di luar paket
+// ditampilkan abu-abu dengan keterangan peran atau paket yang dibutuhkan.
 
 export type Role = "induk" | "cabang";
 export type Plan = "gratis" | "pro" | "bisnis";
@@ -17,7 +17,6 @@ export type FeatureKey =
   | "konsultasi"
   | "umkmBerkembang"
   | "permodalan"
-  | "cariDistributor"
   | "profil";
 
 export type FeatureDef = {
@@ -54,12 +53,15 @@ export const FEATURES: Record<FeatureKey, FeatureDef> = {
   konsultasi: { label: "Konsultasi", path: "/konsultasi", minPlan: "pro", roles: ["induk"] },
   umkmBerkembang: { label: "UMKM Berkembang", path: "/umkm-berkembang", minPlan: "gratis", roles: ["induk"] },
   permodalan: { label: "Permodalan", path: "/permodalan", minPlan: "pro", roles: ["induk"] },
-  cariDistributor: { label: "Cari Distributor", path: "/cari-distributor", minPlan: "gratis", roles: ["induk"] },
   profil: { label: "Profil", path: "/profil", minPlan: "gratis", roles: BOTH },
 };
 
 export function planAtLeast(plan: Plan, min: Plan) {
   return PLAN_ORDER.indexOf(plan) >= PLAN_ORDER.indexOf(min);
+}
+
+export function pesanPeran(roles: Role[]) {
+  return `Hanya tersedia di akun ${roles.map((r) => ROLE_LABEL[r]).join(" dan ")}`;
 }
 
 export function lockedMessage(min: Plan) {
@@ -101,7 +103,6 @@ export const PLANS: PlanDef[] = [
       "Beranda, Kasir POS, dan Bagan Akun",
       "Laporan Keuangan (ekspor maks. 3x)",
       "UMKM Berkembang",
-      "Cari Distributor",
     ],
   },
   {
@@ -132,4 +133,5 @@ export const PLANS: PlanDef[] = [
   },
 ];
 
-export const BRANCHES = ["Cabang Bogor", "Cabang Surakarta", "Cabang Bandung"];
+// Cabang tersebar di beberapa pulau
+export const BRANCHES = ["Cabang Bogor", "Cabang Surakarta", "Cabang Medan", "Cabang Makassar", "Cabang Balikpapan"];

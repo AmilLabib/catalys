@@ -19,7 +19,6 @@ import Permodalan from "./pages/Permodalan";
 import Profil from "./pages/Profil";
 import Konsultasi from "./pages/Konsultasi";
 import SmartPricing from "./components/SmartPricing";
-import CariDistributor from "./pages/CariDistributor";
 import Kasir from "./pages/Kasir";
 import { BusinessSectorProvider } from "./context/BusinessSectorContext";
 import type { FeatureKey } from "./config/access";
@@ -52,7 +51,6 @@ export default function App() {
                     <Route path="/profil" element={<Profil />} />
                     <Route path="/subscription" element={<Navigate to="/profil?tab=paket" replace />} />
                     <Route path="/smart-pricing" element={gated("hargaCerdas", <SmartPricing />)} />
-                    <Route path="/cari-distributor" element={gated("cariDistributor", <CariDistributor />)} />
                     <Route path="/kasir" element={gated("kasir", <Kasir />)} />
                   </Route>
                 </Routes>

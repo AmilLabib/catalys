@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ScanLine, Lock, Camera } from "lucide-react";
+import { ScanLine, Lock, Camera, ShoppingBag, PackagePlus, ListChecks, FileCheck2 } from "lucide-react";
 import { useAccount } from "../context/AccountContext";
 import { useToast } from "../context/ToastContext";
 import { useJournal, type JournalEntry } from "../context/JournalContext";
@@ -16,7 +16,13 @@ import Lapisan from "../components/Lapisan";
 // (bahanId) menambah stok persediaan sebanyak `qty`.
 type ItemStruk = { name: string; price: number; qty: number; bahanId: string };
 
-export default function ScanStruk({ hanyaPembelian = false, className = "" }: { hanyaPembelian?: boolean; className?: string }) {
+// Handle agar komponen lain bisa langsung membuka kamera scan (mis. setelah belanja di supplier)
+export type ScanStrukHandle = { buka: (jenis: "penjualan" | "pembelian") => void };
+
+const ScanStruk = forwardRef<ScanStrukHandle, { hanyaPembelian?: boolean; className?: string }>(function ScanStruk(
+  { hanyaPembelian = false, className = "" },
+  ref,
+) {
   const { canUse, quotaLimit, quotaRemaining, pakaiKuota } = useAccount();
   const { toast } = useToast();
   const { entries, setEntries } = useJournal();
@@ -73,6 +79,13 @@ export default function ScanStruk({ hanyaPembelian = false, className = "" }: { 
     setModalKamera(true);
     nyalakanKamera();
   };
+
+  useImperativeHandle(ref, () => ({
+    buka: (j) => {
+      if (!tersedia) return toast(`Scan struk ${lockedMessage("pro").toLowerCase()}.`, "info");
+      buka(j);
+    },
+  }));
 
   const tutup = () => {
     setModalKamera(false);
@@ -177,7 +190,7 @@ export default function ScanStruk({ hanyaPembelian = false, className = "" }: { 
   const ubahItem = (i: number, p: Partial<ItemStruk>) => setData((d) => d && d.map((x, j) => (j === i ? { ...x, ...p } : x)));
 
   return (
-    <div className={`card-elegant p-5 ${className}`}>
+    <div className={`card-elegant p-5 flex flex-col ${className}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl chip-gradient flex items-center justify-center">
@@ -195,7 +208,55 @@ export default function ScanStruk({ hanyaPembelian = false, className = "" }: { 
         {tersedia && <QuotaBadge kuota="scanStruk" />}
       </div>
 
-      {tersedia ? (
+      {tersedia && !hanyaPembelian ? (
+        <>
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1">
+            <button
+              onClick={() => buka("penjualan")}
+              disabled={sisa === 0}
+              className="btn-gradient group rounded-2xl p-4 text-left flex flex-col justify-between gap-4 disabled:opacity-50"
+            >
+              <span className="w-10 h-10 rounded-xl bg-white/15 ring-1 ring-white/25 flex items-center justify-center">
+                <ShoppingBag className="w-5 h-5" />
+              </span>
+              <span>
+                <span className="block text-base font-bold">Struk Penjualan</span>
+                <span className="block text-xs text-white/75 mt-0.5">Pendapatan dan HPP tercatat, stok produk berkurang.</span>
+              </span>
+            </button>
+            <button
+              onClick={() => buka("pembelian")}
+              disabled={sisa === 0}
+              className="rounded-2xl border-2 border-primary/80 bg-white p-4 text-left flex flex-col justify-between gap-4 text-primary hover:bg-primary/5 transition-colors disabled:opacity-50"
+            >
+              <span className="w-10 h-10 rounded-xl chip-gradient flex items-center justify-center">
+                <PackagePlus className="w-5 h-5" />
+              </span>
+              <span>
+                <span className="block text-base font-bold">Struk Pembelian</span>
+                <span className="block text-xs text-gray-500 mt-0.5">Stok bahan baku bertambah, pembelian tercatat.</span>
+              </span>
+            </button>
+          </div>
+          {/* alur singkat cara kerja scan struk */}
+          <ol className="mt-4 grid grid-cols-3 gap-2 text-[11px] text-gray-500">
+            {[
+              { Icon: Camera, t: "Foto struk" },
+              { Icon: ListChecks, t: "Periksa isinya" },
+              { Icon: FileCheck2, t: "Jurnal otomatis" },
+            ].map(({ Icon, t }, i) => (
+              <li key={t} className="flex items-center gap-2 rounded-lg bg-gray-50 px-2.5 py-2">
+                <span className="w-6 h-6 shrink-0 rounded-full bg-white ring-1 ring-gray-200 flex items-center justify-center text-primary">
+                  <Icon className="w-3.5 h-3.5" />
+                </span>
+                <span>
+                  <span className="font-semibold text-gray-700">{i + 1}.</span> {t}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </>
+      ) : tersedia ? (
         <div className="flex flex-col sm:flex-row gap-3 mt-4">
           {!hanyaPembelian && (
             <button onClick={() => buka("penjualan")} disabled={sisa === 0} className="flex-1 rounded-xl btn-gradient px-4 py-2.5 text-sm font-semibold disabled:opacity-50">
@@ -213,7 +274,7 @@ export default function ScanStruk({ hanyaPembelian = false, className = "" }: { 
           </button>
         </div>
       ) : (
-        <Link to="/profil?tab=paket" className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-gray-100 px-4 py-3 text-sm font-medium text-gray-500">
+        <Link to="/profil?tab=paket" className="mt-4 flex flex-1 items-center justify-center gap-2 rounded-xl bg-gray-100 px-4 py-3 text-sm font-medium text-gray-500">
           <Lock className="w-4 h-4" /> {lockedMessage("pro")}
         </Link>
       )}
@@ -343,4 +404,6 @@ export default function ScanStruk({ hanyaPembelian = false, className = "" }: { 
       )}
     </div>
   );
-}
+});
+
+export default ScanStruk;

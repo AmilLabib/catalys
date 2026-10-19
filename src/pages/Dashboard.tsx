@@ -39,7 +39,7 @@ import { useAccount } from "../context/AccountContext";
 import { useInventory } from "../context/InventoryContext";
 import { useChartOfAccounts } from "../context/ChartOfAccountsContext";
 import { formatRp, formatRpSingkat, hitungLaporan, TAHUN_BERJALAN } from "../data/laporan";
-import { BRANCHES, FEATURES, lockedMessage, type FeatureKey } from "../config/access";
+import { BRANCHES, FEATURES, type FeatureKey } from "../config/access";
 import { bisa3D, BatasGalat3D } from "../components/three/dukungan";
 import type { TitikCabang } from "../components/three/PetaIndonesia3D";
 
@@ -49,8 +49,10 @@ const PetaIndonesia3D = lazy(() => import("../components/three/PetaIndonesia3D")
 // Lokasi tiap cabang di peta (bujur, lintang) dan warna pilarnya
 const LOKASI_CABANG: Record<string, { lon: number; lat: number; warna: string }> = {
   "Cabang Bogor": { lon: 106.8, lat: -6.6, warna: "#1e56c8" },
-  "Cabang Bandung": { lon: 107.61, lat: -6.91, warna: "#6366f1" },
   "Cabang Surakarta": { lon: 110.82, lat: -7.57, warna: "#0ea5e9" },
+  "Cabang Medan": { lon: 98.67, lat: 3.59, warna: "#6366f1" },
+  "Cabang Makassar": { lon: 119.43, lat: -5.14, warna: "#0f766e" },
+  "Cabang Balikpapan": { lon: 116.83, lat: -1.24, warna: "#c2410c" },
 };
 
 const revenueMix = [
@@ -85,7 +87,7 @@ export default function Dashboard() {
   usePageTitle("Beranda");
   const lap = useLaporan(TAHUN_BERJALAN);
   const entitas = useEntitasSendiri();
-  const { canSee, canUse, quotaRemaining, sesi, role } = useAccount();
+  const { alasanTerkunci, quotaRemaining, sesi, role } = useAccount();
   const { products } = useInventory();
   const { accounts } = useChartOfAccounts();
   const [pakai3D] = useState(bisa3D);
@@ -232,7 +234,8 @@ export default function Dashboard() {
     },
   ];
 
-  const modulTerlihat = modul.filter((m) => canSee(m.key));
+  // semua modul tampil; yang di luar peran/paket tampil abu-abu
+  const modulTerlihat = modul;
 
   return (
     <div className="min-h-screen">
@@ -432,7 +435,8 @@ export default function Dashboard() {
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {modulTerlihat.map(({ key, icon: Icon, stats, cta }) => {
           const def = FEATURES[key];
-          const terkunci = !canUse(key);
+          const kunci = alasanTerkunci(key);
+          const terkunci = !!kunci;
           return (
             <div key={key} className={`card-elegant hover-lift p-5 flex flex-col ${terkunci ? "opacity-70" : ""}`}>
               <div className="flex items-center gap-3 mb-4">
@@ -450,14 +454,21 @@ export default function Dashboard() {
                 ))}
               </div>
               <div className="mt-auto pt-5">
-                {terkunci ? (
+                {kunci?.jenis === "paket" ? (
                   <Link
                     to="/profil?tab=paket"
-                    title={lockedMessage(def.minPlan)}
+                    title={kunci.pesan}
                     className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gray-100 px-4 py-2.5 text-xs font-semibold text-gray-500 hover:bg-gray-200"
                   >
-                    <Lock className="w-3.5 h-3.5" /> {lockedMessage(def.minPlan)}
+                    <Lock className="w-3.5 h-3.5" /> {kunci.pesan}
                   </Link>
+                ) : kunci ? (
+                  <span
+                    title={kunci.pesan}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gray-100 px-4 py-2.5 text-xs font-semibold text-gray-500 cursor-not-allowed"
+                  >
+                    <Lock className="w-3.5 h-3.5" /> {kunci.pesan}
+                  </span>
                 ) : (
                   <Link
                     to={def.path}

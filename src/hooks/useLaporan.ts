@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useAccount } from "../context/AccountContext";
 import { useChartOfAccounts } from "../context/ChartOfAccountsContext";
 import { useJournal } from "../context/JournalContext";
-import { hitungLaporan, KONSOLIDASI } from "../data/laporan";
+import { hitungLaporan, hitungLaporanRentang, KONSOLIDASI } from "../data/laporan";
 import type { JournalEntry } from "../context/JournalContext";
 
 const TANPA_JURNAL: JournalEntry[] = [];
@@ -24,5 +24,18 @@ export function useLaporan(tahun: number, entitas?: string) {
   return useMemo(
     () => hitungLaporan(target, tahun, jurnal, accounts),
     [target, tahun, jurnal, accounts],
+  );
+}
+
+// Laporan untuk rentang tanggal bebas (format YYYY-MM-DD)
+export function useLaporanRentang(dari: string, sampai: string, entitas?: string) {
+  const sendiri = useEntitasSendiri();
+  const target = entitas ?? sendiri;
+  const { entries } = useJournal();
+  const { accounts } = useChartOfAccounts();
+  const jurnal = target === sendiri ? entries : TANPA_JURNAL;
+  return useMemo(
+    () => hitungLaporanRentang(target, dari, sampai, jurnal, accounts),
+    [target, dari, sampai, jurnal, accounts],
   );
 }

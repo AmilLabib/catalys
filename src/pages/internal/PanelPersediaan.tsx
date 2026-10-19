@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Boxes, Plus, Pencil, Trash2, Search, ShoppingCart, Star, TrendingDown, AlertTriangle, MapPin, Store } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Boxes, Plus, Pencil, Trash2, Search, ShoppingCart, Star, TrendingDown, AlertTriangle, MapPin, Store, ScanLine } from "lucide-react";
 import { ResponsiveContainer, ComposedChart, Area, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, Legend } from "recharts";
 import { useBahanBaku } from "../../context/BahanBakuContext";
 import { useAccount } from "../../context/AccountContext";
@@ -9,7 +9,7 @@ import { useInventory } from "../../context/InventoryContext";
 import { useToast } from "../../context/ToastContext";
 import Modal from "../../components/Modal";
 import BrandIcon from "../../components/BrandIcon";
-import ScanStruk from "../../components/ScanStruk";
+import ScanStruk, { type ScanStrukHandle } from "../../components/ScanStruk";
 import {
   hariTersisa,
   linkMaps,
@@ -49,7 +49,15 @@ export default function PanelPersediaan() {
   const [produkFilter, setProdukFilter] = useState("semua");
   const [hanyaMenipis, setHanyaMenipis] = useState(false);
   const [formBahan, setFormBahan] = useState<{ id: string | null; data: FormBahan } | null>(null);
-  const [beli, setBeli] = useState<{ bahan: BahanBaku; supplier?: SupplierBahan; qty: number; harga: number } | null>(null);
+  // tahap: konfirmasi sudah belanja -> pilih scan struk, atau catat manual
+  const [beli, setBeli] = useState<{
+    bahan: BahanBaku;
+    supplier?: SupplierBahan;
+    qty: number;
+    harga: number;
+    tahap: "konfirmasi" | "sudah" | "manual";
+  } | null>(null);
+  const scanRef = useRef<ScanStrukHandle>(null);
   const [supplierSemua, setSupplierSemua] = useState(false);
 
   const kategoriList = Array.from(new Set(bahan.map((b) => b.kategori)));
@@ -199,7 +207,7 @@ export default function PanelPersediaan() {
                     <td className="py-2.5 pr-4 text-right tabular-nums">{formatRp(Math.round(b.stok * b.harga))}</td>
                     <td className="py-2.5 whitespace-nowrap text-right">
                       <button
-                        onClick={() => setBeli({ bahan: b, qty: Math.max(1, Math.round(b.stokMin)), harga: b.harga })}
+                        onClick={() => setBeli({ bahan: b, qty: Math.max(1, Math.round(b.stokMin)), harga: b.harga, tahap: "manual" })}
                         className="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-2 py-1 text-xs font-semibold text-primary hover:bg-primary/15"
                       >
                         <ShoppingCart className="w-3.5 h-3.5" /> Beli
@@ -317,7 +325,7 @@ export default function PanelPersediaan() {
                             <BrandIcon brand="googlemaps" size={13} /> Maps
                           </a>
                           <button
-                            onClick={() => setBeli({ bahan: b, supplier: s, qty: Math.max(1, Math.round(b.stokMin)), harga: s.harga })}
+                            onClick={() => setBeli({ bahan: b, supplier: s, qty: Math.max(1, Math.round(b.stokMin)), harga: s.harga, tahap: "konfirmasi" })}
                             className="flex-1 inline-flex items-center justify-center gap-1 rounded-lg bg-primary px-2 py-1.5 text-xs font-semibold text-white"
                           >
                             <ShoppingCart className="w-3.5 h-3.5" /> Beli
@@ -337,7 +345,7 @@ export default function PanelPersediaan() {
             )}
           </div>
           <div className="space-y-3">
-            <ScanStruk hanyaPembelian />
+            <ScanStruk ref={scanRef} hanyaPembelian />
             <p className="text-xs text-gray-500 px-1">
               Setelah belanja di supplier atau Shopee, foto struknya di sini. Barang yang cocok dengan bahan baku langsung menambah stok dan harga
               rata-rata, lalu dipakai otomatis di perhitungan HPP.
@@ -468,9 +476,75 @@ export default function PanelPersediaan() {
         )}
       </Modal>
 
-      {/* ---------- modal catat pembelian ---------- */}
-      <Modal isOpen={!!beli} onClose={() => setBeli(null)} title={`Beli ${beli?.bahan.nama ?? ""}`}>
-        {beli && (
+      {/* ---------- modal beli: konfirmasi belanja di supplier, lalu scan struk ---------- */}
+      <Modal isOpen={!!beli} onClose={() => setBeli(null)} title={beli?.tahap === "manual" ? `Catat pembelian ${beli.bahan.nama}` : `Beli ${beli?.bahan.nama ?? ""}`}>
+        {beli && beli.supplier && beli.tahap !== "manual" && (
+          <div className="space-y-4">
+            <div className="flex gap-3 rounded-xl border p-3">
+              <img src={beli.supplier.foto.src} alt="" className="w-24 h-20 shrink-0 rounded-lg object-cover" />
+              <div className="min-w-0 text-sm">
+                <p className="font-semibold text-gray-900">{beli.supplier.nama}</p>
+                <p className="text-xs text-gray-500">
+                  {beli.supplier.jenis} · {beli.supplier.jarakKm} km · {beli.supplier.kecamatan}
+                </p>
+                <p className="mt-1 font-bold text-primary">
+                  {formatRp(beli.supplier.harga)}
+                  <span className="text-xs font-normal text-gray-500">/{beli.bahan.satuan} · {beli.supplier.minOrder}</span>
+                </p>
+              </div>
+            </div>
+            <a
+              href={linkMaps(beli.supplier)}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <BrandIcon brand="googlemaps" size={15} /> Buka rute ke toko di Google Maps
+            </a>
+
+            {beli.tahap === "konfirmasi" ? (
+              <div className="rounded-2xl bg-primary/5 p-4 text-center">
+                <p className="font-semibold text-gray-900">Apakah Anda sudah melakukan pembelian?</p>
+                <p className="mt-1 text-xs text-gray-500">
+                  Setelah berbelanja, scan struknya supaya stok dan jurnal pembelian tercatat otomatis.
+                </p>
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <button onClick={() => setBeli(null)} className="rounded-xl border bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    Belum, nanti saja
+                  </button>
+                  <button onClick={() => setBeli({ ...beli, tahap: "sudah" })} className="btn-gradient rounded-xl px-4 py-2.5 text-sm font-semibold">
+                    Sudah
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <button
+                  onClick={() => {
+                    setBeli(null);
+                    scanRef.current?.buka("pembelian");
+                  }}
+                  className="btn-gradient w-full rounded-2xl p-4 text-left flex items-center gap-3"
+                >
+                  <span className="w-10 h-10 shrink-0 rounded-xl bg-white/15 ring-1 ring-white/25 flex items-center justify-center">
+                    <ScanLine className="w-5 h-5" />
+                  </span>
+                  <span>
+                    <span className="block font-bold">Scan Struk Pembelian</span>
+                    <span className="block text-xs text-white/75">Foto struk dari {beli.supplier.nama}, stok bertambah otomatis.</span>
+                  </span>
+                </button>
+                <button
+                  onClick={() => setBeli({ ...beli, tahap: "manual" })}
+                  className="w-full text-center text-xs font-medium text-primary hover:underline"
+                >
+                  Tidak ada struk? Catat manual
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+        {beli && (!beli.supplier || beli.tahap === "manual") && (
           <div className="space-y-4">
             {beli.supplier && (
               <p className="text-sm text-gray-600">

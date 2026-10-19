@@ -1,7 +1,10 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import {
+  BRANCHES,
   FEATURES,
   QUOTA_LIMITS,
+  lockedMessage,
+  pesanPeran,
   planAtLeast,
   type FeatureKey,
   type Plan,
@@ -64,6 +67,8 @@ type AccountCtx = AccountState & {
   updateProfile: (p: Partial<Profile>) => void;
   canSee: (f: FeatureKey) => boolean;
   canUse: (f: FeatureKey) => boolean;
+  // alasan fitur tidak bisa dipakai (peran lebih dulu, lalu paket), null bila bisa
+  alasanTerkunci: (f: FeatureKey) => { pesan: string; jenis: "peran" | "paket" } | null;
   quotaLimit: (q: QuotaKey) => number | null;
   quotaRemaining: (q: QuotaKey) => number | null;
   pakaiKuota: (q: QuotaKey, amount?: number) => boolean;
@@ -85,7 +90,9 @@ function loadState(): AccountState {
         profil[k] = String(profil[k]).replace(/arthami/gi, (m: string) => (m === m.toLowerCase() ? "catalys" : "Catalys"));
       }
       // kuota baru yang belum ada di data lama diisi nilai awal
-      return { ...DEFAULT_STATE, ...tersimpan, profile: profil, usage: { ...DEFAULT_STATE.usage, ...tersimpan.usage } };
+      // cabang yang sudah tidak ada lagi (mis. Cabang Bandung) dialihkan ke cabang pertama
+      const cabang = BRANCHES.includes(tersimpan.cabang) ? tersimpan.cabang : BRANCHES[0];
+      return { ...DEFAULT_STATE, ...tersimpan, cabang, profile: profil, usage: { ...DEFAULT_STATE.usage, ...tersimpan.usage } };
     }
   } catch {
     // abaikan, pakai default
@@ -107,6 +114,11 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   const canSee = (f: FeatureKey) => FEATURES[f].roles.includes(state.role);
   const canUse = (f: FeatureKey) =>
     canSee(f) && planAtLeast(state.plan, FEATURES[f].minPlan);
+  const alasanTerkunci = (f: FeatureKey) => {
+    if (!canSee(f)) return { pesan: pesanPeran(FEATURES[f].roles), jenis: "peran" as const };
+    if (!planAtLeast(state.plan, FEATURES[f].minPlan)) return { pesan: lockedMessage(FEATURES[f].minPlan), jenis: "paket" as const };
+    return null;
+  };
 
   const quotaLimit = (q: QuotaKey) => {
     const base = QUOTA_LIMITS[q][state.plan];
@@ -144,6 +156,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       setState((s) => ({ ...s, profile: { ...s.profile, ...p } })),
     canSee,
     canUse,
+    alasanTerkunci,
     quotaLimit,
     quotaRemaining,
     pakaiKuota,

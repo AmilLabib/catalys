@@ -27,7 +27,9 @@ export const WILAYAH: Wilayah[] = [
 export const WILAYAH_CABANG: Record<string, string> = {
   "Cabang Bogor": "Bogor",
   "Cabang Surakarta": "Surakarta",
-  "Cabang Bandung": "Bandung",
+  "Cabang Medan": "Medan",
+  "Cabang Makassar": "Makassar",
+  "Cabang Balikpapan": "Balikpapan",
 };
 
 export type Kompetitor = {

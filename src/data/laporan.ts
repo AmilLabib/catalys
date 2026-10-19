@@ -143,6 +143,15 @@ export type Laporan = {
   arusKasLalu: ArusKas;
   ekuitas: PerubahanEkuitas;
   bulanan: Bulanan[];
+  // hanya ada pada laporan rentang tanggal (hitungLaporanRentang)
+  periode?: {
+    dari: string;
+    sampai: string;
+    hari: number;
+    label: string;
+    kolomPeriode: [string, string];
+    kolomPosisi: [string, string];
+  };
 };
 
 export const KONSOLIDASI = "Konsolidasi";
@@ -151,9 +160,11 @@ export const ENTITAS = [KONSOLIDASI, ...BRANCHES];
 // Porsi tiap cabang terhadap angka konsolidasi
 const PORSI: Record<string, number> = {
   [KONSOLIDASI]: 1,
-  [BRANCHES[0]]: 0.42,
-  [BRANCHES[1]]: 0.33,
-  [BRANCHES[2]]: 0.25,
+  [BRANCHES[0]]: 0.28,
+  [BRANCHES[1]]: 0.2,
+  [BRANCHES[2]]: 0.2,
+  [BRANCHES[3]]: 0.17,
+  [BRANCHES[4]]: 0.15,
 };
 
 export const NAMA_BULAN = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
@@ -473,6 +484,280 @@ export function hitungLaporan(
   };
 }
 
+// ---------- Laporan untuk rentang tanggal bebas ----------
+//
+// Model dasar bersifat tahunan. Untuk rentang tanggal:
+// - laba rugi tahunan dibagi ke tiap hari mengikuti bobot musiman (MUSIM), lalu dijumlahkan;
+// - neraca pada suatu tanggal diinterpolasi antara posisi akhir tahun lalu dan akhir tahun itu
+//   (interpolasi linear dua neraca seimbang tetap seimbang);
+// - jurnal pengguna diposting sesuai tanggalnya.
+// Rentang 1 Januari s.d. 31 Desember (atau s.d. hari ini) menghasilkan angka yang sama dengan hitungLaporan.
+
+const HARI_MS = 86_400_000;
+export const HARI_INI = iso(new Date(Date.UTC(TAHUN_BERJALAN, SEKARANG.getMonth(), SEKARANG.getDate())));
+export const TANGGAL_MIN = `${TAHUN_TERSEDIA[0]}-01-01`;
+
+function keTanggal(s: string) {
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d));
+}
+function iso(d: Date) {
+  return d.toISOString().slice(0, 10);
+}
+function geserHari(s: string, n: number) {
+  return iso(new Date(keTanggal(s).getTime() + n * HARI_MS));
+}
+function geserTahun(s: string, n: number) {
+  const d = keTanggal(s);
+  const y = d.getUTCFullYear() + n;
+  const hariMaks = new Date(Date.UTC(y, d.getUTCMonth() + 1, 0)).getUTCDate();
+  return iso(new Date(Date.UTC(y, d.getUTCMonth(), Math.min(d.getUTCDate(), hariMaks))));
+}
+function selisihHari(a: string, b: string) {
+  return Math.round((keTanggal(b).getTime() - keTanggal(a).getTime()) / HARI_MS);
+}
+const hariDalamBulan = (y: number, m: number) => new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+
+type ModeBobot = "musim" | "rata";
+
+// Bobot kumulatif sejak 1 Januari s.d. akhir tanggal s (0..1 untuk setahun penuh)
+function bobotKumulatif(s: string, mode: ModeBobot) {
+  const d = keTanggal(s);
+  const y = d.getUTCFullYear();
+  const m = d.getUTCMonth();
+  const tgl = d.getUTCDate();
+  if (mode === "rata") {
+    const awal = Date.UTC(y, 0, 1);
+    const hariTahun = (Date.UTC(y + 1, 0, 1) - awal) / HARI_MS;
+    return ((d.getTime() - awal) / HARI_MS + 1) / hariTahun;
+  }
+  let w = 0;
+  for (let i = 0; i < m; i++) w += MUSIM[i];
+  return w + (MUSIM[m] * tgl) / hariDalamBulan(y, m);
+}
+
+// Titik potret model per tahun: akhir tahun, atau hari ini untuk tahun berjalan
+function bobotPotret(y: number, mode: ModeBobot) {
+  return y === TAHUN_BERJALAN ? bobotKumulatif(HARI_INI, mode) : 1;
+}
+
+// Laba rugi model (tanpa jurnal) untuk rentang [a, b]
+function lrModel(m: Record<number, Snapshot>, a: string, b: string, mode: ModeBobot): Nilai {
+  const hasil: Nilai = {};
+  const ya = Number(a.slice(0, 4));
+  const yb = Number(b.slice(0, 4));
+  for (let y = ya; y <= yb; y++) {
+    const snap = m[y];
+    if (!snap) continue;
+    const s = y === ya ? a : `${y}-01-01`;
+    const e = y === yb ? b : `${y}-12-31`;
+    const sebelum = s.endsWith("-01-01") ? 0 : bobotKumulatif(geserHari(s, -1), mode);
+    const porsi = (bobotKumulatif(e, mode) - sebelum) / bobotPotret(y, mode);
+    for (const [k, v] of Object.entries(snap.lr)) hasil[k] = (hasil[k] || 0) + v * porsi;
+  }
+  for (const k of Object.keys(hasil)) hasil[k] = r(hasil[k]);
+  return hasil;
+}
+
+// Neraca model (tanpa jurnal) pada akhir tanggal s
+function neracaModel(m: Record<number, Snapshot>, s: string): Nilai {
+  const y = Number(s.slice(0, 4));
+  const kini = m[y] ?? m[TAHUN_BERJALAN];
+  const lalu = m[y - 1] ?? kini;
+  const t = Math.min(1, bobotKumulatif(s, "musim") / bobotPotret(y, "musim"));
+  const hasil: Nilai = {};
+  for (const k of new Set([...Object.keys(lalu.neraca), ...Object.keys(kini.neraca)])) {
+    const a = lalu.neraca[k] || 0;
+    hasil[k] = a + ((kini.neraca[k] || 0) - a) * t;
+  }
+  return hasil;
+}
+
+// Posting jurnal: neraca memuat semua jurnal s.d. `posisi`, laba rugi hanya jurnal di [dari, sampai]
+function postingRentang(neraca: Nilai, lr: Nilai, posisi: string, dari: string, sampai: string, entries: JournalEntry[], accounts: Account[]) {
+  const n = { ...neraca };
+  const l = { ...lr };
+  const byId = new Map(accounts.map((a) => [a.id, a]));
+  for (const e of entries) {
+    if (e.contoh || !e.date || e.date > posisi) continue;
+    const dalam = e.date >= dari && e.date <= sampai;
+    for (const ln of e.lines) {
+      const acc = byId.get(ln.accountId);
+      if (!acc || !(ln.amount > 0)) continue;
+      const debit = ln.side === "debit";
+      if (acc.type === "asset" || acc.type === "liability" || acc.type === "equity") {
+        const p = cariPos(acc.code, ALL_NERACA);
+        if (!p) continue;
+        const naik = acc.type === "asset" ? debit : !debit;
+        n[p.key] = (n[p.key] || 0) + (naik ? ln.amount : -ln.amount);
+      } else {
+        const p = cariPos(acc.code, ALL_LR);
+        if (!p) continue;
+        const naik = acc.type === "revenue" ? !debit : debit;
+        const delta = naik ? ln.amount : -ln.amount;
+        n.saldoLaba = (n.saldoLaba || 0) + (acc.type === "revenue" ? delta : -delta);
+        if (dalam) l[p.key] = (l[p.key] || 0) + delta;
+      }
+    }
+  }
+  return { neraca: n, lr: l };
+}
+
+const BULAN_PANJANG = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+
+export function formatTanggal(s: string, panjang = false) {
+  const d = keTanggal(s);
+  return `${d.getUTCDate()} ${(panjang ? BULAN_PANJANG : NAMA_BULAN)[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+
+// "1 Jan – 19 Okt 2026", atau "2025" bila setahun penuh
+function labelRentang(dari: string, sampai: string, singkat: boolean) {
+  if (dari.endsWith("-01-01") && sampai.endsWith("-12-31") && dari.slice(0, 4) === sampai.slice(0, 4)) return dari.slice(0, 4);
+  const a = formatTanggal(dari, !singkat);
+  const b = formatTanggal(sampai, !singkat);
+  return dari.slice(0, 4) === sampai.slice(0, 4) ? `${a.slice(0, -5)} – ${b}` : `${a} – ${b}`;
+}
+
+// Kelompok waktu untuk grafik: harian (≤ 31 hari), bulanan (≤ 2 tahun), atau kuartalan
+function susunKelompok(dari: string, sampai: string) {
+  const hari = selisihHari(dari, sampai) + 1;
+  const kelompok: { a: string; b: string; label: string }[] = [];
+  if (hari <= 31) {
+    for (let s = dari; s <= sampai; s = geserHari(s, 1)) {
+      const d = keTanggal(s);
+      kelompok.push({ a: s, b: s, label: `${d.getUTCDate()} ${NAMA_BULAN[d.getUTCMonth()]}` });
+    }
+    return kelompok;
+  }
+  const lintasTahun = dari.slice(0, 4) !== sampai.slice(0, 4);
+  const langkah = hari <= 731 ? 1 : 3;
+  const d = keTanggal(dari);
+  let y = d.getUTCFullYear();
+  let m = langkah === 3 ? Math.floor(d.getUTCMonth() / 3) * 3 : d.getUTCMonth();
+  for (;;) {
+    const awal = iso(new Date(Date.UTC(y, m, 1)));
+    if (awal > sampai) break;
+    const akhir = iso(new Date(Date.UTC(y, m + langkah, 0)));
+    const label =
+      langkah === 3 ? `K${m / 3 + 1} ${String(y).slice(2)}` : lintasTahun ? `${NAMA_BULAN[m]} ${String(y).slice(2)}` : NAMA_BULAN[m];
+    kelompok.push({ a: awal < dari ? dari : awal, b: akhir > sampai ? sampai : akhir, label });
+    m += langkah;
+    if (m > 11) {
+      m -= 12;
+      y++;
+    }
+  }
+  return kelompok;
+}
+
+function susunBulananRentang(
+  m: Record<number, Snapshot>,
+  dari: string,
+  sampai: string,
+  entries: JournalEntry[],
+  accounts: Account[],
+): Bulanan[] {
+  const kelompok = susunKelompok(dari, sampai);
+  const byId = new Map(accounts.map((a) => [a.id, a]));
+  const totalBeban = (x: Nilai) => {
+    const rk = hitungRingkasanLR(x);
+    return rk.totalPendapatan + (x.pendapatanLain || 0) - rk.labaBersih;
+  };
+  // beban model lebih rata dibanding pendapatan: campuran bobot musiman dan rata
+  const bebanModelRentang = totalBeban(lrModel(m, dari, sampai, "musim"));
+  const mentah = kelompok.map((k) => (totalBeban(lrModel(m, k.a, k.b, "musim")) + totalBeban(lrModel(m, k.a, k.b, "rata"))) / 2);
+  const totalMentah = mentah.reduce((s, x) => s + x, 0) || 1;
+
+  return kelompok.map((k, i) => {
+    let p = hitungRingkasanLR(lrModel(m, k.a, k.b, "musim")).totalPendapatan;
+    let b = (mentah[i] / totalMentah) * bebanModelRentang;
+    for (const e of entries) {
+      if (e.contoh || !e.date || e.date < k.a || e.date > k.b) continue;
+      for (const l of e.lines) {
+        const a = byId.get(l.accountId);
+        if (a?.type === "revenue") p += l.side === "credit" ? l.amount : -l.amount;
+        if (a?.type === "expense") b += l.side === "debit" ? l.amount : -l.amount;
+      }
+    }
+    const pendapatan = r(p);
+    const beban = r(b);
+    return { bulan: k.label, pendapatan, beban, laba: pendapatan - beban, kasMasuk: r(pendapatan * 0.94), kasKeluar: r(beban * 0.9) };
+  });
+}
+
+export function hitungLaporanRentang(
+  entitas: string,
+  dariInput: string,
+  sampaiInput: string,
+  entries: JournalEntry[],
+  accounts: Account[],
+): Laporan {
+  const m = model(entitas);
+  // batasi ke data yang tersedia dan jangan melewati hari ini
+  let sampai = sampaiInput > HARI_INI ? HARI_INI : sampaiInput;
+  let dari = dariInput < TANGGAL_MIN ? TANGGAL_MIN : dariInput;
+  if (dari > sampai) [dari, sampai] = [sampai, dari];
+  const dariLalu = geserTahun(dari, -1);
+  const sampaiLalu = geserTahun(sampai, -1);
+
+  const hitung = (a: string, b: string) => {
+    const awal = geserHari(a, -1);
+    const kini = postingRentang(neracaModel(m, b), lrModel(m, a, b, "musim"), b, a, b, entries, accounts);
+    const sebelum = postingRentang(neracaModel(m, awal), {}, awal, a, b, entries, accounts).neraca;
+    for (const k of Object.keys(kini.neraca)) kini.neraca[k] = r(kini.neraca[k]);
+    for (const k of Object.keys(sebelum)) sebelum[k] = r(sebelum[k]);
+    // pembulatan bisa menggeser keseimbangan beberapa ribu rupiah: kas sebagai penyeimbang
+    for (const n of [kini.neraca, sebelum]) {
+      const lain = sum(n, [...NERACA.asetLancar, ...NERACA.asetTidakLancar].filter((p) => p.key !== "kas"));
+      n.kas = sum(n, [...NERACA.liabilitasPendek, ...NERACA.liabilitasPanjang, ...NERACA.ekuitas]) - lain;
+    }
+    return { ...kini, awal: sebelum };
+  };
+
+  const cur = hitung(dari, sampai);
+  const lalu = hitung(dariLalu, sampaiLalu);
+  const labaBersih = hitungRingkasanLR(cur.lr).labaBersih;
+
+  const ekuitas: PerubahanEkuitas = {
+    modalAwal: cur.awal.modal || 0,
+    setoranModal: (cur.neraca.modal || 0) - (cur.awal.modal || 0),
+    modalAkhir: cur.neraca.modal || 0,
+    cadanganAwal: cur.awal.cadangan || 0,
+    cadanganAkhir: cur.neraca.cadangan || 0,
+    saldoLabaAwal: cur.awal.saldoLaba || 0,
+    labaBersih,
+    prive: (cur.awal.saldoLaba || 0) + labaBersih - (cur.neraca.saldoLaba || 0),
+    saldoLabaAkhir: cur.neraca.saldoLaba || 0,
+    totalAwal: sum(cur.awal, NERACA.ekuitas),
+    totalAkhir: sum(cur.neraca, NERACA.ekuitas),
+  };
+
+  return {
+    tahun: Number(sampai.slice(0, 4)),
+    entitas,
+    berjalan: false,
+    bulanBerjalan: 12, // pembanding sudah periode yang sama tahun lalu, tidak perlu disetahunkan
+    neraca: cur.neraca,
+    neracaLalu: lalu.neraca,
+    lr: cur.lr,
+    lrLalu: lalu.lr,
+    ringkasan: ringkas(cur.neraca, cur.lr),
+    ringkasanLalu: ringkas(lalu.neraca, lalu.lr),
+    arusKas: susunArusKas(cur.neraca, cur.awal, cur.lr),
+    arusKasLalu: susunArusKas(lalu.neraca, lalu.awal, lalu.lr),
+    ekuitas,
+    bulanan: susunBulananRentang(m, dari, sampai, entries, accounts),
+    periode: {
+      dari,
+      sampai,
+      hari: selisihHari(dari, sampai) + 1,
+      label: labelRentang(dari, sampai, false),
+      kolomPeriode: [labelRentang(dari, sampai, true), labelRentang(dariLalu, sampaiLalu, true)],
+      kolomPosisi: [formatTanggal(sampai), formatTanggal(sampaiLalu)],
+    },
+  };
+}
+
 export function formatRp(v: number) {
   const s = Math.abs(Math.round(v)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   return v < 0 ? `(Rp ${s})` : `Rp ${s}`;
@@ -487,7 +772,8 @@ export function formatRpSingkat(v: number) {
   return `${sign}Rp ${a}`;
 }
 
-export function labelPeriode(lap: Pick<Laporan, "tahun" | "berjalan" | "bulanBerjalan">) {
+export function labelPeriode(lap: Pick<Laporan, "tahun" | "berjalan" | "bulanBerjalan" | "periode">) {
+  if (lap.periode) return lap.periode.label;
   return lap.berjalan
     ? `1 Januari – ${NAMA_BULAN[lap.bulanBerjalan - 1]} ${lap.tahun} (berjalan)`
     : `1 Januari – 31 Desember ${lap.tahun}`;
