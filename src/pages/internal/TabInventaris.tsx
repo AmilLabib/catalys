@@ -43,10 +43,10 @@ function DiagramRantaiPasok({
     const semuaBahan = Array.from(new Set(suppliers.flatMap((s) => s.materials)));
     return [
       ...suppliers.map((s, i) => node(`sup-${s.name}`, s.name, 0, ys(suppliers.length)[i], "#f8fafc", "#cbd5e1")),
-      ...semuaBahan.map((b, i) => node(`raw-${b}`, b, kolom, ys(semuaBahan.length)[i], "#eff6ff", "#bfdbfe", "#1e40af")),
-      ...wip.map((w, i) => node(`wip-${w}`, w, kolom * 2, ys(wip.length)[i], "#fff7ed", "#fed7aa", "#9a3412")),
+      ...semuaBahan.map((b, i) => node(`raw-${b}`, b, kolom, ys(semuaBahan.length)[i], "#f3f7fa", "#c6d8e4", "#0a3f5e")),
+      ...wip.map((w, i) => node(`wip-${w}`, w, kolom * 2, ys(wip.length)[i], "#f3f7fa", "#c6d8e4", "#0a3f5e")),
       ...[...jadi, ...bahan.slice(0, 4)].map((f, i) =>
-        node(`fin-${f}`, f, kolom * 3, ys(jadi.length + Math.min(4, bahan.length))[i], "#ecfdf5", "#bbf7d0", "#065f46"),
+        node(`fin-${f}`, f, kolom * 3, ys(jadi.length + Math.min(4, bahan.length))[i], "#f3f7fa", "#c6d8e4", "#012a3d"),
       ),
     ];
   }, [suppliers, bahan, wip, jadi]);

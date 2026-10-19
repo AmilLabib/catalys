@@ -492,10 +492,10 @@ export default function SmartPricing() {
                     <XAxis type="number" tickLine={false} axisLine={false} fontSize={11} tickFormatter={(v) => `${Math.round(Number(v) / 1000)}rb`} />
                     <YAxis type="category" dataKey="nama" width={130} tickLine={false} axisLine={false} fontSize={11} />
                     <Tooltip formatter={(v: number) => formatRp(v)} />
-                    <ReferenceLine x={pasar.average} stroke="#2563eb" strokeDasharray="4 4" />
+                    <ReferenceLine x={pasar.average} stroke="#2f6b8f" strokeDasharray="4 4" />
                     <Bar dataKey="harga" name="Harga" radius={[0, 4, 4, 0]}>
                       {grafik.map((g) => (
-                        <Cell key={g.nama} fill={g.kita ? "#10b981" : "#9cb2c1"} />
+                        <Cell key={g.nama} fill={g.kita ? "#2f6b8f" : "#9cb2c1"} />
                       ))}
                     </Bar>
                   </BarChart>

@@ -375,10 +375,10 @@ function DataDriven() {
                   <YAxis width={60} tickFormatter={(v) => formatRpSingkat(Number(v)).replace("Rp ", "")} tickLine={false} axisLine={false} fontSize={11} />
                   <ReTooltip formatter={(v: number, n: string) => [formatRp(v), n]} />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Line type="monotone" dataKey="pendapatan" name="Pendapatan" stroke="#10b981" strokeWidth={2} dot={{ r: 2 }} />
-                  <Line type="monotone" dataKey="beban" name="Beban" stroke="#ef4444" strokeWidth={2} dot={{ r: 2 }} />
+                  <Line type="monotone" dataKey="pendapatan" name="Pendapatan" stroke="#2f6b8f" strokeWidth={2} dot={{ r: 2 }} />
+                  <Line type="monotone" dataKey="beban" name="Beban" stroke="#9cb2c1" strokeWidth={2} dot={{ r: 2 }} />
                   {keuangan.lonjakan && (
-                    <ReferenceDot x={keuangan.lonjakan.bulan} y={keuangan.lonjakan.beban} r={7} fill="#ef4444" stroke="#fff" strokeWidth={2} />
+                    <ReferenceDot x={keuangan.lonjakan.bulan} y={keuangan.lonjakan.beban} r={7} fill="#9cb2c1" stroke="#fff" strokeWidth={2} />
                   )}
                 </ComposedChart>
               </ResponsiveContainer>
@@ -407,7 +407,7 @@ function DataDriven() {
                   <ReTooltip formatter={(v: number) => [`${v} transaksi`, "Jumlah"]} />
                   <Bar dataKey="n" radius={[6, 6, 0, 0]}>
                     {PENJUALAN_PER_JAM.map((x) => (
-                      <Cell key={x.jam} fill={x.jam === inventaris.puncak ? "#f59e0b" : "#2f6b8f"} />
+                      <Cell key={x.jam} fill={x.jam === inventaris.puncak ? "#5487ab" : "#2f6b8f"} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -435,7 +435,7 @@ function DataDriven() {
                   <Legend wrapperStyle={{ fontSize: 12 }} />
                   <Bar dataKey="kehadiran" name="Kehadiran (%)" radius={[4, 4, 0, 0]}>
                     {penggajian.grafik.map((x) => (
-                      <Cell key={x.nama} fill={x.kehadiran < 90 ? "#ef4444" : "#2f6b8f"} />
+                      <Cell key={x.nama} fill={x.kehadiran < 90 ? "#9cb2c1" : "#2f6b8f"} />
                     ))}
                   </Bar>
                   <Bar dataKey="kinerja" name="Kinerja" fill="#9cb2c1" radius={[4, 4, 0, 0]} />
@@ -466,7 +466,7 @@ function DataDriven() {
                   <ReTooltip formatter={(v: number) => [v.toFixed(1), "Rating"]} />
                   <Bar dataKey="rating" radius={[6, 6, 0, 0]}>
                     {pemasaran.platform.map((p) => (
-                      <Cell key={p.platform} fill={p.rating < 3.8 ? "#ef4444" : "#2f6b8f"} />
+                      <Cell key={p.platform} fill={p.rating < 3.8 ? "#9cb2c1" : "#2f6b8f"} />
                     ))}
                   </Bar>
                 </BarChart>

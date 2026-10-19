@@ -1,6 +1,6 @@
 import confetti from "canvas-confetti";
 
-const WARNA_BRAND = ["#012a3d", "#13577d", "#2f6b8f", "#5487ab", "#38bdf8", "#fbbf24"];
+const WARNA_BRAND = ["#012a3d", "#13577d", "#2f6b8f", "#5487ab", "#7193ad", "#9cb2c1"];
 
 export const kurangiGerak = () =>
   typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;

@@ -5,16 +5,17 @@ import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, BarChart, Bar, XAxis
 import { useToast } from "../../context/ToastContext";
 import { ULASAN_BARU, ulasanAwal, type Platform, type Sentimen, type Topik, type Ulasan } from "../../data/internal";
 
+// warna grafik per platform memakai tone navy; logo platform tetap warna aslinya
 const PLATFORM: Record<Platform, { warna: string; chip: string; brand: Brand }> = {
-  Instagram: { warna: "#c13584", chip: "bg-pink-50 text-pink-700 ring-pink-200", brand: "instagram" },
-  TikTok: { warna: "#111827", chip: "bg-gray-100 text-gray-800 ring-gray-300", brand: "tiktok" },
-  Shopee: { warna: "#ee4d2d", chip: "bg-orange-50 text-orange-700 ring-orange-200", brand: "shopee" },
-  Tokopedia: { warna: "#03ac0e", chip: "bg-green-50 text-green-700 ring-green-200", brand: "tokopedia" },
+  Instagram: { warna: "#012a3d", chip: "bg-pink-50 text-pink-700 ring-pink-200", brand: "instagram" },
+  TikTok: { warna: "#2f6b8f", chip: "bg-gray-100 text-gray-800 ring-gray-300", brand: "tiktok" },
+  Shopee: { warna: "#5487ab", chip: "bg-orange-50 text-orange-700 ring-orange-200", brand: "shopee" },
+  Tokopedia: { warna: "#9cb2c1", chip: "bg-green-50 text-green-700 ring-green-200", brand: "tokopedia" },
 };
 const SENTIMEN: Record<Sentimen, { label: string; warna: string }> = {
-  positif: { label: "Positif", warna: "#10b981" },
-  netral: { label: "Netral", warna: "#9ca3af" },
-  negatif: { label: "Negatif", warna: "#ef4444" },
+  positif: { label: "Positif", warna: "#2f6b8f" },
+  netral: { label: "Netral", warna: "#c6d8e4" },
+  negatif: { label: "Negatif", warna: "#012a3d" },
 };
 const TOPIK: Topik[] = ["Rasa / Kualitas", "Harga", "Pengiriman", "Pelayanan", "Kemasan"];
 
@@ -205,8 +206,8 @@ export default function TabPemasaran() {
                 <YAxis allowDecimals={false} width={28} tickLine={false} axisLine={false} fontSize={11} />
                 <Tooltip />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="positif" name="Positif" fill="#10b981" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="negatif" name="Negatif" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="positif" name="Positif" fill="#2f6b8f" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="negatif" name="Negatif" fill="#9cb2c1" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

@@ -25,7 +25,7 @@ const BenchmarkChart: React.FC<Props> = ({
     { name: "Industry Avg", value: industryAvg },
   ];
 
-  const colors = ["#16a34a", "#84cc16"]; // green tones matching theme
+  const colors = ["#012a3d", "#9cb2c1"]; // tone navy: gelap = Anda, terang = pasar
 
   return (
     <div className="w-full h-36">

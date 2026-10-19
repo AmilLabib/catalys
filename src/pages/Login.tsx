@@ -67,7 +67,7 @@ export default function Login() {
                 </div>
                 <div className="login-item -mt-2 text-center" style={{ animationDelay: "0.6s" }}>
                   <p className="text-4xl font-light tracking-[0.45em] pl-[0.45em] text-primary">CATALYS</p>
-                  <p className="mt-1 text-[10px] font-semibold tracking-[0.28em] text-[#1e3a8a]">SMARTER DATA. STRONGER GROWTH.</p>
+                  <p className="mt-1 text-[10px] font-semibold tracking-[0.28em] text-[#012a3d]">SMARTER DATA. STRONGER GROWTH.</p>
                 </div>
               </div>
             </Suspense>

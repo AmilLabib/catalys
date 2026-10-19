@@ -107,10 +107,10 @@
   background: linear-gradient(135deg, #012a3d 0%, #0a3f5e 55%, #13577d 100%);
 }
 .grad-ocean {
-  background: linear-gradient(135deg, #06324a 0%, #0f5672 55%, #1d7a93 100%);
+  background: linear-gradient(135deg, #0a3f5e 0%, #13577d 55%, #2f6b8f 100%);
 }
 .grad-indigo {
-  background: linear-gradient(135deg, #0d2c4f 0%, #1c4778 55%, #3466a1 100%);
+  background: linear-gradient(135deg, #13577d 0%, #2f6b8f 55%, #5487ab 100%);
 }
 .grad-steel {
   background: linear-gradient(135deg, #17384f 0%, #2e5d7c 55%, #5487ab 100%);
@@ -154,7 +154,7 @@
 /* Sidebar berlatar navy; menu aktif kebalikannya: latar putih, teks navy */
 .sidebar-gelap {
   background:
-    radial-gradient(420px 260px at 0% 0%, rgba(59, 130, 246, 0.22), transparent 70%),
+    radial-gradient(420px 260px at 0% 0%, rgba(84, 135, 171, 0.22), transparent 70%),
     linear-gradient(180deg, #012a3d 0%, #0a3f5e 60%, #13577d 100%);
   box-shadow: 8px 0 30px -18px rgba(1, 42, 61, 0.6);
 }
@@ -221,7 +221,7 @@
 .latar-mesh span:nth-child(3) {
   width: 380px;
   height: 380px;
-  background: #38bdf8;
+  background: #7193ad;
   top: 40%;
   left: -120px;
   animation-delay: -15s;

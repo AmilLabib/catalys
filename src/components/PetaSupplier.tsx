@@ -24,7 +24,7 @@ const PUSAT_KOTA: Record<string, [number, number]> = {
 };
 
 // Warna penanda per jenis toko, semuanya dari palet navy aplikasi
-export const WARNA_JENIS: Record<SupplierBahan["jenis"], { bg: string; huruf: string }> = {
+const WARNA_JENIS: Record<SupplierBahan["jenis"], { bg: string; huruf: string }> = {
   "Pasar tradisional": { bg: "#9cb2c1", huruf: "P" },
   Grosir: { bg: "#2f6b8f", huruf: "G" },
   Distributor: { bg: "#012a3d", huruf: "D" },

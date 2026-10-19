@@ -48,11 +48,11 @@ const PetaIndonesia3D = lazy(() => import("../components/three/PetaIndonesia3D")
 
 // Lokasi tiap cabang di peta (bujur, lintang) dan warna pilarnya
 const LOKASI_CABANG: Record<string, { lon: number; lat: number; warna: string }> = {
-  "Cabang Bogor": { lon: 106.8, lat: -6.6, warna: "#1e56c8" },
-  "Cabang Surakarta": { lon: 110.82, lat: -7.57, warna: "#0ea5e9" },
-  "Cabang Medan": { lon: 98.67, lat: 3.59, warna: "#6366f1" },
-  "Cabang Makassar": { lon: 119.43, lat: -5.14, warna: "#0f766e" },
-  "Cabang Balikpapan": { lon: 116.83, lat: -1.24, warna: "#c2410c" },
+  "Cabang Bogor": { lon: 106.8, lat: -6.6, warna: "#012a3d" },
+  "Cabang Surakarta": { lon: 110.82, lat: -7.57, warna: "#2f6b8f" },
+  "Cabang Medan": { lon: 98.67, lat: 3.59, warna: "#5487ab" },
+  "Cabang Makassar": { lon: 119.43, lat: -5.14, warna: "#7193ad" },
+  "Cabang Balikpapan": { lon: 116.83, lat: -1.24, warna: "#9cb2c1" },
 };
 
 const revenueMix = [
@@ -394,7 +394,7 @@ export default function Dashboard() {
                 />
                 <ReTooltip formatter={(value, name) => [formatRp(Number(value)), name === "pendapatan" ? "Pendapatan" : "Beban"]} />
                 <Area type="monotone" dataKey="pendapatan" stroke="#2f6b8f" strokeWidth={2} fill="url(#gradPendapatan)" />
-                <Line type="monotone" dataKey="beban" stroke="#e11d48" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="beban" stroke="#9cb2c1" strokeWidth={2} dot={false} />
               </ComposedChart>
             </ResponsiveContainer>
           </div>

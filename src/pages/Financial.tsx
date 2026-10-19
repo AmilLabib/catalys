@@ -58,7 +58,8 @@ import { susunCalk, susunTabel, type Baris } from "../data/laporanTabel";
 import { eksporExcel, eksporPdf } from "../utils/eksporLaporan";
 import { BRANCHES, pesanPeran } from "../config/access";
 
-const WARNA = ["#012a3d", "#2f6b8f", "#5487ab", "#9cb2c1", "#0f766e", "#c2410c", "#7c3aed", "#be123c", "#64748b", "#ca8a04"];
+// palet grafik: hanya tone navy, terang-gelap berselang agar tetap terbedakan
+const WARNA = ["#012a3d", "#5487ab", "#13577d", "#9cb2c1", "#2f6b8f", "#c6d8e4", "#0a3f5e", "#7193ad", "#3d7ea3", "#adc4d3"];
 
 const angka = (v: number | undefined) => {
   if (v === undefined) return "";
@@ -496,7 +497,7 @@ export default function Financial() {
             <Legend wrapperStyle={{ fontSize: 12 }} />
             <Bar dataKey="pendapatan" name="Pendapatan" fill="#2f6b8f" radius={[4, 4, 0, 0]} />
             <Bar dataKey="beban" name="Beban" fill="#9cb2c1" radius={[4, 4, 0, 0]} />
-            <Line dataKey="laba" name="Laba" stroke="#0f766e" strokeWidth={2.5} dot={false} />
+            <Line dataKey="laba" name="Laba" stroke="#13577d" strokeWidth={2.5} dot={false} />
           </ComposedChart>
         </KartuGrafik>
 
@@ -504,15 +505,15 @@ export default function Financial() {
           <AreaChart data={marginBulanan}>
             <defs>
               <linearGradient id="gradMargin" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#0f766e" stopOpacity={0.35} />
-                <stop offset="100%" stopColor="#0f766e" stopOpacity={0} />
+                <stop offset="0%" stopColor="#13577d" stopOpacity={0.35} />
+                <stop offset="100%" stopColor="#13577d" stopOpacity={0} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef2f6" />
             <XAxis dataKey="bulan" tickLine={false} axisLine={false} fontSize={12} />
             <YAxis width={44} tickLine={false} axisLine={false} fontSize={11} tickFormatter={(v) => `${Math.round(Number(v))}%`} />
             <Tooltip formatter={(v: number) => [`${v.toFixed(1).replace(".", ",")}%`, "Margin laba"]} />
-            <Area type="monotone" dataKey="margin" stroke="#0f766e" strokeWidth={2.5} fill="url(#gradMargin)" />
+            <Area type="monotone" dataKey="margin" stroke="#13577d" strokeWidth={2.5} fill="url(#gradMargin)" />
           </AreaChart>
         </KartuGrafik>
 
@@ -564,7 +565,7 @@ export default function Financial() {
           <PieChart>
             <Pie data={strukturPendanaan} dataKey="value" nameKey="name" innerRadius={55} outerRadius={90} paddingAngle={3}>
               {strukturPendanaan.map((_, i) => (
-                <Cell key={i} fill={["#c2410c", "#ca8a04", "#0f766e"][i % 3]} />
+                <Cell key={i} fill={["#9cb2c1", "#5487ab", "#012a3d"][i % 3]} />
               ))}
             </Pie>
             <Tooltip formatter={(v: number) => formatRp(v)} />
@@ -579,8 +580,8 @@ export default function Financial() {
             <YAxis width={56} tickLine={false} axisLine={false} fontSize={11} tickFormatter={sumbuRp} />
             <Tooltip formatter={rpTooltip} />
             <Legend wrapperStyle={{ fontSize: 12 }} />
-            <Bar dataKey="kasMasuk" name="Kas masuk" fill="#0f766e" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="kasKeluar" name="Kas keluar" fill="#e11d48" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="kasMasuk" name="Kas masuk" fill="#13577d" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="kasKeluar" name="Kas keluar" fill="#9cb2c1" radius={[4, 4, 0, 0]} />
           </BarChart>
         </KartuGrafik>
 

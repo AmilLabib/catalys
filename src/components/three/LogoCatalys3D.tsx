@@ -9,7 +9,7 @@ const TINGGI_BATANG = [0.55, 0.85, 1.12, 1.45];
 const LEBAR_BATANG = 0.26;
 const JARAK_BATANG = 0.38;
 const DASAR_Y = -0.78;
-const WARNA_BATANG = ["#1e3a8a", "#1d4ed8", "#2563eb", "#3b82f6"];
+const WARNA_BATANG = ["#012a3d", "#13577d", "#2f6b8f", "#5487ab"];
 
 function xBatang(i: number) {
   return -0.62 + i * JARAK_BATANG;
@@ -29,7 +29,7 @@ function Ruas({ a, b }: { a: THREE.Vector3; b: THREE.Vector3 }) {
   return (
     <mesh position={posisi} rotation={rotasi}>
       <cylinderGeometry args={[0.022, 0.022, panjang, 8]} />
-      <meshStandardMaterial color="#1d4ed8" metalness={0.3} roughness={0.35} />
+      <meshStandardMaterial color="#13577d" metalness={0.3} roughness={0.35} />
     </mesh>
   );
 }
@@ -80,7 +80,7 @@ function Partikel() {
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[posisi, 3]} />
       </bufferGeometry>
-      <pointsMaterial color="#5b8fc7" size={0.035} sizeAttenuation transparent opacity={0.7} depthWrite={false} />
+      <pointsMaterial color="#5487ab" size={0.035} sizeAttenuation transparent opacity={0.7} depthWrite={false} />
     </points>
   );
 }
@@ -125,11 +125,11 @@ function Lambang({ kursor }: { kursor: React.MutableRefObject<{ x: number; y: nu
       {/* busur luar dan dalam membentuk huruf C, terbuka ke kanan */}
       <mesh rotation={[0, 0, 0.24 * Math.PI]}>
         <torusGeometry args={[1.38, 0.13, 24, 140, 1.52 * Math.PI]} />
-        <meshStandardMaterial color="#1e40af" metalness={0.45} roughness={0.25} />
+        <meshStandardMaterial color="#0a3f5e" metalness={0.45} roughness={0.25} />
       </mesh>
       <mesh rotation={[0, 0, 0.42 * Math.PI]} position={[0.05, 0, 0.12]}>
         <torusGeometry args={[1.12, 0.045, 16, 120, 1.1 * Math.PI]} />
-        <meshStandardMaterial color="#60a5fa" metalness={0.3} roughness={0.3} />
+        <meshStandardMaterial color="#7193ad" metalness={0.3} roughness={0.3} />
       </mesh>
 
       {TINGGI_BATANG.map((_, i) => (
@@ -142,18 +142,18 @@ function Lambang({ kursor }: { kursor: React.MutableRefObject<{ x: number; y: nu
       {titikTren.map((p, i) => (
         <mesh key={i} position={p}>
           <sphereGeometry args={[0.065, 16, 16]} />
-          <meshStandardMaterial color="#ffffff" emissive="#93c5fd" emissiveIntensity={0.4} />
+          <meshStandardMaterial color="#ffffff" emissive="#9cb2c1" emissiveIntensity={0.4} />
         </mesh>
       ))}
 
       {/* panah pertumbuhan */}
       <mesh>
         <tubeGeometry args={[lintasPanah, 64, 0.075, 12, false]} />
-        <meshStandardMaterial color="#2563eb" metalness={0.35} roughness={0.25} />
+        <meshStandardMaterial color="#2f6b8f" metalness={0.35} roughness={0.25} />
       </mesh>
       <mesh position={ujungPanah.posisi} rotation={ujungPanah.rotasi}>
         <coneGeometry args={[0.2, 0.36, 24]} />
-        <meshStandardMaterial color="#3b82f6" metalness={0.35} roughness={0.25} />
+        <meshStandardMaterial color="#5487ab" metalness={0.35} roughness={0.25} />
       </mesh>
     </group>
   );
@@ -175,7 +175,7 @@ export default function LogoCatalys3D() {
     <Canvas camera={{ position: [0, 0, 5.4], fov: 45 }} dpr={[1, 2]} gl={{ alpha: true, antialias: true }}>
       <ambientLight intensity={0.65} />
       <directionalLight position={[3, 4, 5]} intensity={1.4} />
-      <pointLight position={[-3, -2, 3]} intensity={12} color="#93c5fd" />
+      <pointLight position={[-3, -2, 3]} intensity={12} color="#9cb2c1" />
       <Partikel />
       <Lambang kursor={kursor} />
     </Canvas>

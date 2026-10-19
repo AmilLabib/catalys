@@ -193,7 +193,7 @@ function useTeksturLabel(judul: string, sub: string, aktif: boolean) {
           g.fillStyle = aktif ? "#ffffff" : "#012a3d";
           g.font = "700 40px Inter, system-ui, sans-serif";
           g.fillText(judul, 160, 54);
-          g.fillStyle = aktif ? "#bfdbfe" : "#2f6b8f";
+          g.fillStyle = aktif ? "#c6d8e4" : "#2f6b8f";
           g.font = "600 30px Inter, system-ui, sans-serif";
           g.fillText(sub, 160, 94);
         },
@@ -391,7 +391,7 @@ export default function PetaIndonesia3D(props: { titik: TitikCabang[]; dipilih: 
       <Canvas camera={{ position: [0, 11, 9], fov: 40 }} dpr={[1, 2]} gl={{ alpha: true, antialias: true }}>
         <ambientLight intensity={0.75} />
         <directionalLight position={[4, 8, 6]} intensity={1.5} />
-        <directionalLight position={[-5, 4, -4]} intensity={0.4} color="#bfdbfe" />
+        <directionalLight position={[-5, 4, -4]} intensity={0.4} color="#c6d8e4" />
         <Adegan {...props} onPilih={pilih} mode={mode} />
       </Canvas>
       <button

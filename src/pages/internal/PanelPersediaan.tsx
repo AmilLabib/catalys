@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useMemo, useRef, useState } from "react";
 import { Boxes, Plus, Pencil, Trash2, Search, ShoppingCart, Star, TrendingDown, AlertTriangle, MapPin, Store, ScanLine } from "lucide-react";
 import { ResponsiveContainer, ComposedChart, Area, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, Legend } from "recharts";
 import { useBahanBaku } from "../../context/BahanBakuContext";
@@ -10,6 +10,7 @@ import { useToast } from "../../context/ToastContext";
 import Modal from "../../components/Modal";
 import BrandIcon from "../../components/BrandIcon";
 import ScanStruk, { type ScanStrukHandle } from "../../components/ScanStruk";
+import type { TitikSupplier } from "../../components/PetaSupplier";
 import {
   hariTersisa,
   linkMaps,
@@ -28,6 +29,9 @@ const STATUS = {
   "hampir habis": { label: "Hampir habis", cls: "bg-amber-100 text-amber-800", bar: "bg-amber-500" },
   aman: { label: "Aman", cls: "bg-emerald-50 text-emerald-700", bar: "bg-emerald-500" },
 } as const;
+
+// Leaflet dimuat terpisah, hanya saat tab persediaan dibuka
+const PetaSupplier = lazy(() => import("../../components/PetaSupplier"));
 
 const urutStatus = { habis: 0, "hampir habis": 1, aman: 2 };
 const angka = (v: number) => v.toLocaleString("id-ID", { maximumFractionDigits: 2 });
@@ -112,6 +116,20 @@ export default function PanelPersediaan() {
   const pilihan = "border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white";
   const input = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm";
   const supplierDitampilkan = supplierSemua ? daftar : daftar.slice(0, 4);
+
+  // titik peta: satu penanda per toko, berisi semua bahan yang tersedia di sana
+  const titikPeta = useMemo(() => {
+    const m = new Map<string, TitikSupplier>();
+    for (const b of daftar) {
+      for (const sp of supplierBahan(b, kota)) {
+        const t = m.get(sp.nama) ?? { supplier: sp, bahan: [] };
+        if (sp.jarakKm < t.supplier.jarakKm) t.supplier = sp;
+        t.bahan.push({ bahan: b, supplier: sp });
+        m.set(sp.nama, t);
+      }
+    }
+    return [...m.values()];
+  }, [daftar, kota]);
 
   return (
     <div className="space-y-6">
@@ -262,6 +280,18 @@ export default function PanelPersediaan() {
             </div>
           </div>
         </div>
+        <div className="mb-6">
+          <Suspense fallback={<div className="shimmer h-80 rounded-2xl bg-gray-100" />}>
+            <PetaSupplier
+              kota={kota}
+              titik={titikPeta}
+              onBeli={(b, sp) => setBeli({ bahan: b, supplier: sp, qty: Math.max(1, Math.round(b.stokMin)), harga: sp.harga, tahap: "konfirmasi" })}
+            />
+          </Suspense>
+          <p className="mt-2 text-xs text-gray-500">
+            {titikPeta.length} supplier di sekitar {kota}. Klik penanda untuk melihat bahan yang tersedia. Lokasi adalah data contoh.
+          </p>
+        </div>
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           <div className="xl:col-span-2 space-y-6">
             {supplierDitampilkan.map((b) => {
@@ -277,7 +307,7 @@ export default function PanelPersediaan() {
                       href={linkShopee(b)}
                       target="_blank"
                       rel="noreferrer"
-                      className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-[#ee4d2d] hover:underline"
+                      className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
                     >
                       <BrandIcon brand="shopee" size={14} /> Cari di Shopee
                     </a>
@@ -394,7 +424,7 @@ export default function PanelPersediaan() {
                   <Legend wrapperStyle={{ fontSize: 12 }} />
                   <Bar dataKey="pakai" name="Pemakaian" fill="#9cb2c1" radius={[4, 4, 0, 0]} />
                   <Area type="monotone" dataKey="stok" name="Sisa stok" stroke="#2f6b8f" strokeWidth={2.5} fill="url(#gradStok)" />
-                  <ReferenceLine y={trenAktif.b.stokMin} stroke="#ef4444" strokeDasharray="5 5" />
+                  <ReferenceLine y={trenAktif.b.stokMin} stroke="#9cb2c1" strokeDasharray="5 5" />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
