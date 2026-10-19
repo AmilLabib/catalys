@@ -17,6 +17,7 @@ import { useToast } from "../context/ToastContext";
 import { useJournal } from "../context/JournalContext";
 import { useChartOfAccounts } from "../context/ChartOfAccountsContext";
 import { formatRp } from "../data/laporan";
+import { rayakan } from "../utils/efek";
 
 type JenisProduk = "KUR" | "Pembiayaan Invoice" | "Modal Kerja Mikro";
 
@@ -209,6 +210,7 @@ function Permodalan() {
       ...prev,
     ]);
     toast(`Pengajuan ke ${p.name} terkirim. Estimasi proses ${p.processingDays} hari kerja.`);
+    rayakan();
     setPengajuan(null);
     setSetuju(false);
   };
@@ -220,6 +222,7 @@ function Permodalan() {
       [akun("2.2.2.01"), "credit", l.pokok],
     ]);
     toast("Pinjaman disetujui dan dana dicairkan (simulasi)");
+    rayakan("besar");
   };
 
   const bayarCicilan = (l: Pinjaman) => {
@@ -245,6 +248,7 @@ function Permodalan() {
       [akun("1.1.1.02") ?? akun("1.1.1.01"), "credit", sisa],
     ]);
     toast("Pinjaman berhasil dilunasi");
+    rayakan("besar");
   };
 
   const aktif = portofolio.filter((l) => l.status === "Berjalan");

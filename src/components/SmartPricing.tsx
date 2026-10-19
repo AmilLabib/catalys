@@ -292,7 +292,22 @@ export default function SmartPricing() {
         </div>
       </section>
 
-      {hasil && pasar && (
+      {memuat && (
+        // skeleton selama mencari harga kompetitor
+        <div className="space-y-6" aria-busy="true" aria-label="Memuat hasil">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-5 shimmer h-64" />
+            <div className="lg:col-span-7 shimmer h-64" />
+          </div>
+          <div className="card-elegant p-6 space-y-3">
+            {Array.from({ length: 5 }, (_, i) => (
+              <div key={i} className="shimmer h-10" />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!memuat && hasil && pasar && (
         <>
           {/* Skenario */}
           <div className="flex flex-wrap gap-2">

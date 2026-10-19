@@ -242,6 +242,16 @@ export default function TabPemasaran() {
       <section className="card-elegant p-6">
         <h3 className="text-lg font-semibold mb-4">Ulasan Terbaru</h3>
         <ul className="divide-y">
+          {memuat &&
+            Array.from({ length: 2 }, (_, i) => (
+              <li key={`muat-${i}`} className="py-3 flex gap-3" aria-hidden>
+                <span className="shimmer w-24 h-6 rounded-full" />
+                <span className="flex-1 space-y-2">
+                  <span className="block shimmer h-4 w-1/3" />
+                  <span className="block shimmer h-4 w-3/4" />
+                </span>
+              </li>
+            ))}
           {data.map((u) => (
             <li key={u.id} className="py-3 flex gap-3">
               <span className={`shrink-0 h-fit w-24 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${PLATFORM[u.platform].chip}`}>

@@ -1,6 +1,9 @@
+import { useId } from "react";
+import { motion } from "motion/react";
 import type { LucideIcon } from "lucide-react";
 
-// Navigasi tab berbentuk pil (gaya yang sama dengan halaman UMKM Berkembang)
+// Navigasi tab berbentuk pil (gaya yang sama dengan halaman UMKM Berkembang).
+// Latar tab aktif bergeser halus ke tab yang dipilih.
 export default function PillTabs<K extends string>({
   tabs,
   active,
@@ -12,6 +15,7 @@ export default function PillTabs<K extends string>({
   onChange: (k: K) => void;
   className?: string;
 }) {
+  const idIndikator = useId();
   return (
     <div className={`flex flex-wrap gap-2 ${className}`} role="tablist">
       {tabs.map((t) => {
@@ -23,11 +27,19 @@ export default function PillTabs<K extends string>({
             role="tab"
             aria-selected={on}
             onClick={() => onChange(t.key)}
-            className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium transition-colors ${
-              on ? "bg-primary text-white border-primary shadow-sm" : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+            className={`relative inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium transition-colors ${
+              on ? "text-white border-transparent" : "bg-white/80 backdrop-blur text-gray-700 border-gray-300 hover:bg-white"
             }`}
           >
-            {Icon && <Icon className="w-4 h-4" />} {t.label}
+            {on && (
+              <motion.span
+                layoutId={idIndikator}
+                className="indikator-aktif rounded-full"
+                transition={{ type: "spring", stiffness: 420, damping: 34 }}
+              />
+            )}
+            {Icon && <Icon className="relative w-4 h-4" />}
+            <span className="relative">{t.label}</span>
           </button>
         );
       })}

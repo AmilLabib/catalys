@@ -8,6 +8,7 @@ import { usePageTitle } from "../hooks/usePageTitle";
 import ProductImage from "../components/ProductImage";
 import ProductFormModal from "../components/ProductFormModal";
 import { PRODUK_KOSONG } from "../components/produkForm";
+import { rayakan } from "../utils/efek";
 
 interface CartItem {
   id: string;
@@ -748,6 +749,7 @@ export default function Kasir() {
                   setCart([]);
                   setIsPaymentOpen(false);
                   toast("Pembayaran tercatat dan jurnal penjualan dibuat");
+                  rayakan();
                 }}
               >
                 Saya sudah bayar

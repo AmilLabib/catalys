@@ -28,6 +28,7 @@ import {
   Legend,
 } from "recharts";
 import PillTabs from "../components/PillTabs";
+import AngkaBerjalan from "../components/AngkaBerjalan";
 import { useLaporan } from "../hooks/useLaporan";
 import { useInventory } from "../context/InventoryContext";
 import { useBusinessSector } from "../context/BusinessSectorContext";
@@ -310,7 +311,9 @@ function DataDriven() {
             <h2 className="text-lg font-semibold">Skor Kesehatan UMKM</h2>
           </div>
           <div className="relative flex items-end gap-2 mb-4">
-            <span className="text-5xl font-extrabold">{skorTotal}</span>
+            <span className="text-5xl font-extrabold">
+              <AngkaBerjalan nilai={skorTotal} format={String} />
+            </span>
             <span className="text-sm text-white/70 mb-2">/ 100</span>
           </div>
           <div className="relative space-y-3">

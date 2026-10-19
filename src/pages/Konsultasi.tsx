@@ -5,6 +5,7 @@ import { usePageTitle } from "../hooks/usePageTitle";
 import { useAccount } from "../context/AccountContext";
 import { useToast } from "../context/ToastContext";
 import QuotaBadge from "../components/QuotaBadge";
+import { rayakan } from "../utils/efek";
 
 const PAKAR = [
   { nama: "Dewi Kartika, S.E., Ak.", bidang: "Keuangan & Pajak UMKM", pengalaman: "9 tahun", rating: 4.9, inisial: "DK" },
@@ -74,6 +75,7 @@ export default function Konsultasi() {
     });
     if (!ok) return toast("Kuota konsultasi habis. Beli sesi tambahan untuk menjadwalkan lagi.", "peringatan");
     toast(`Sesi dengan ${form.pakar.split(",")[0]} dijadwalkan`);
+    rayakan();
     setForm((f) => ({ ...f, catatan: "" }));
   };
 

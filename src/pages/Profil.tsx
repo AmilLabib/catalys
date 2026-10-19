@@ -16,9 +16,11 @@ import {
 import { usePageTitle } from "../hooks/usePageTitle";
 import { useAccount, type Profile } from "../context/AccountContext";
 import { useToast } from "../context/ToastContext";
+import { rayakan } from "../utils/efek";
 import {
   PLANS,
   PLAN_LABEL,
+  PLAN_ORDER,
   ROLE_LABEL,
   QUOTA_INFO,
   type Plan,
@@ -190,6 +192,8 @@ function TabPaket() {
   const navigate = useNavigate();
 
   const pilih = (p: Plan) => {
+    // naik paket dirayakan dengan confetti
+    if (PLAN_ORDER.indexOf(p) > PLAN_ORDER.indexOf(plan)) rayakan("besar");
     setPlan(p);
     toast(`Paket ${PLAN_LABEL[p]} aktif. Fitur sudah disesuaikan.`);
     navigate("/dashboard");

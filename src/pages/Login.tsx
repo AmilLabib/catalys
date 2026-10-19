@@ -4,6 +4,7 @@ import { Building2, Store, Lock, Check } from "lucide-react";
 import { useAccount } from "../context/AccountContext";
 import { SECTOR_OPTIONS, useBusinessSector, type BusinessSector } from "../context/BusinessSectorContext";
 import { BRANCHES, PLANS, PLAN_LABEL, type Plan, type Role } from "../config/access";
+import { useEfekKursor } from "../hooks/useEfekKursor";
 
 // Akun demo: email dan kata sandi terisi otomatis sesuai peran, tidak bisa diubah.
 // Pengguna cukup memilih peran, sektor bisnis, dan paket langganan.
@@ -21,6 +22,7 @@ const ROLE_OPSI: { value: Role; label: string; desc: string; Icon: typeof Store 
 
 export default function Login() {
   const navigate = useNavigate();
+  useEfekKursor();
   const { sector, setSector } = useBusinessSector();
   const { login, setPlan, plan: planTersimpan } = useAccount();
   const [role, setRole] = useState<Role>("induk");

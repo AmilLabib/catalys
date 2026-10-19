@@ -1,12 +1,14 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { Trophy, Medal, Wallet, Brain, CheckCircle2, Users, Clock, Phone } from "lucide-react";
 import { useBusinessSector } from "../../context/BusinessSectorContext";
 import { useJournal } from "../../context/JournalContext";
 import { useChartOfAccounts } from "../../context/ChartOfAccountsContext";
 import { useToast } from "../../context/ToastContext";
 import BrandIcon from "../../components/BrandIcon";
+import AngkaBerjalan from "../../components/AngkaBerjalan";
 import { hitungGaji, karyawanSektor, skorKaryawan, POTONGAN_BPJS, type Karyawan } from "../../data/internal";
 import { formatRp, formatRpSingkat, NAMA_BULAN } from "../../data/laporan";
+import { rayakan } from "../../utils/efek";
 
 function Gauge({ value }: { value: number }) {
   const size = 110;
@@ -71,6 +73,7 @@ export default function TabPenggajian() {
   const peringkat = [...rincian].sort((a, b) => b.skor - a.skor);
   const juara = peringkat[0];
   const hadir = karyawan.filter((k) => k.masuk).length;
+  const fmtHadir = useCallback((v: number) => `${v} / ${karyawan.length}`, [karyawan.length]);
 
   const prosesGaji = () => {
     const id = (code: string) => accounts.find((a) => a.code === code)?.id;
@@ -94,6 +97,7 @@ export default function TabPenggajian() {
       ...entries,
     ]);
     toast(`Gaji ${rincian.length} karyawan dibayar, jurnal penggajian dibuat`);
+    rayakan();
   };
 
   const medali = ["text-amber-300", "text-gray-200", "text-orange-300"];
@@ -104,10 +108,10 @@ export default function TabPenggajian() {
       <section className="lg:col-span-12 grid grid-cols-2 lg:grid-cols-4 gap-4">
         {(
           [
-            ["Karyawan hadir hari ini", `${hadir} / ${karyawan.length}`, Users, "grad-navy"],
-            ["Total gaji bruto", formatRpSingkat(total.bruto), Wallet, "grad-ocean"],
-            ["Potongan BPJS (4%)", formatRpSingkat(total.potongan), Wallet, "grad-indigo"],
-            ["Gaji bersih dibayar", formatRpSingkat(total.neto), Wallet, "grad-steel"],
+            ["Karyawan hadir hari ini", hadir, Users, "grad-navy"],
+            ["Total gaji bruto", total.bruto, Wallet, "grad-ocean"],
+            ["Potongan BPJS (4%)", total.potongan, Wallet, "grad-indigo"],
+            ["Gaji bersih dibayar", total.neto, Wallet, "grad-steel"],
           ] as const
         ).map(([k, v, Icon, grad]) => (
           <div key={k} className={`card-gradient ${grad} p-4`}>
@@ -115,7 +119,9 @@ export default function TabPenggajian() {
               <p className="text-xs text-white/75">{k}</p>
               <Icon className="w-4 h-4 text-white/80" />
             </div>
-            <p className="relative mt-1 text-xl font-bold">{v}</p>
+            <p className="relative mt-1 text-xl font-bold">
+              <AngkaBerjalan nilai={v} format={k === "Karyawan hadir hari ini" ? fmtHadir : formatRpSingkat} />
+            </p>
           </div>
         ))}
       </section>

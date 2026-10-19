@@ -32,6 +32,7 @@ import {
 } from "recharts";
 
 import { usePageTitle } from "../hooks/usePageTitle";
+import AngkaBerjalan from "../components/AngkaBerjalan";
 import { useLaporan, useEntitasSendiri } from "../hooks/useLaporan";
 import { useAccount } from "../context/AccountContext";
 import { useInventory } from "../context/InventoryContext";
@@ -222,8 +223,8 @@ export default function Dashboard() {
                 <Icon className="w-5 h-5 text-white" />
               </div>
             </div>
-            <p className="relative mt-3 text-xl font-extrabold tracking-tight" title={formatRp(nilai)}>
-              {formatRp(nilai)}
+            <p className="relative mt-3 text-xl font-extrabold tracking-tight">
+              <AngkaBerjalan nilai={nilai} format={formatRp} />
             </p>
             <div className="relative mt-2 flex items-center gap-2 text-xs text-white/70">
               <Tren nilai={tren} /> {catatan}

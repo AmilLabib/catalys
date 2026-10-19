@@ -37,6 +37,7 @@ import { useToast } from "../context/ToastContext";
 import { useJournal } from "../context/JournalContext";
 import { useChartOfAccounts } from "../context/ChartOfAccountsContext";
 import QuotaBadge from "../components/QuotaBadge";
+import AngkaBerjalan from "../components/AngkaBerjalan";
 import ScanStruk from "../components/ScanStruk";
 import {
   ENTITAS,
@@ -261,7 +262,7 @@ export default function Financial() {
                 </div>
               </div>
               <p className="relative mt-2 text-2xl font-extrabold" title={formatRp(nilai)}>
-                {formatRpSingkat(nilai)}
+                <AngkaBerjalan nilai={nilai} format={formatRpSingkat} />
               </p>
               <p className="relative text-xs text-white/70 mt-1">
                 Tahun lalu {formatRpSingkat(lalu)}

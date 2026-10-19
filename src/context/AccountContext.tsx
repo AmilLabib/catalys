@@ -79,8 +79,13 @@ function loadState(): AccountState {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const tersimpan = JSON.parse(raw);
+      // migrasi nama lama: profil yang tersimpan sebelum ganti nama masih berisi "Arthami"
+      const profil = { ...DEFAULT_STATE.profile, ...tersimpan.profile };
+      for (const k of Object.keys(profil) as (keyof Profile)[]) {
+        profil[k] = String(profil[k]).replace(/arthami/gi, (m: string) => (m === m.toLowerCase() ? "catalys" : "Catalys"));
+      }
       // kuota baru yang belum ada di data lama diisi nilai awal
-      return { ...DEFAULT_STATE, ...tersimpan, usage: { ...DEFAULT_STATE.usage, ...tersimpan.usage } };
+      return { ...DEFAULT_STATE, ...tersimpan, profile: profil, usage: { ...DEFAULT_STATE.usage, ...tersimpan.usage } };
     }
   } catch {
     // abaikan, pakai default

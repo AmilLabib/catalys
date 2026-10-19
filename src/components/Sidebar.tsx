@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { motion } from "motion/react";
 import {
   Home,
   BarChart2,
@@ -68,7 +69,7 @@ export default function Sidebar({ mobileOpen = false, onClose }: Props) {
   const { canSee, canUse } = useAccount();
   const { toast } = useToast();
 
-  function item(key: FeatureKey, Icon: typeof Home, compact: boolean) {
+  function item(key: FeatureKey, Icon: typeof Home, compact: boolean, indikator: string) {
     const def = FEATURES[key];
     const active = pathname === def.path;
     const locked = !canUse(key);
@@ -77,7 +78,7 @@ export default function Sidebar({ mobileOpen = false, onClose }: Props) {
     }`;
     const label = (
       <span
-        className={`transition-all duration-300 ease-in-out origin-left truncate ${
+        className={`relative transition-all duration-300 ease-in-out origin-left truncate ${
           compact
             ? "opacity-0 translate-x-[-6px] w-0 overflow-hidden"
             : "opacity-100 translate-x-0"
@@ -115,17 +116,23 @@ export default function Sidebar({ mobileOpen = false, onClose }: Props) {
       <Link
         key={key}
         to={def.path}
-        className={`${base} ${
-          active ? "bg-primary text-white shadow-sm" : "text-text hover:bg-gray-100"
-        }`}
+        className={`${base} ${active ? "text-white" : "text-text hover:bg-gray-100"}`}
       >
-        <Icon className="w-5 h-5 flex-shrink-0" />
+        {/* latar menu aktif bergeser halus antar menu (shared layout animation) */}
+        {active && (
+          <motion.span
+            layoutId={indikator}
+            className="indikator-aktif rounded-lg"
+            transition={{ type: "spring", stiffness: 420, damping: 34 }}
+          />
+        )}
+        <Icon className="relative w-5 h-5 flex-shrink-0" />
         {label}
       </Link>
     );
   }
 
-  function nav(compact: boolean) {
+  function nav(compact: boolean, indikator: string) {
     return GROUPS.map((g) => {
       const visible = g.items.filter((i) => canSee(i.key));
       if (visible.length === 0) return null;
@@ -139,7 +146,7 @@ export default function Sidebar({ mobileOpen = false, onClose }: Props) {
             {g.title}
           </p>
           <div className="space-y-1">
-            {visible.map((i) => item(i.key, i.icon, compact))}
+            {visible.map((i) => item(i.key, i.icon, compact, indikator))}
           </div>
         </div>
       );
@@ -184,7 +191,7 @@ export default function Sidebar({ mobileOpen = false, onClose }: Props) {
       )}
       {/* Sidebar desktop */}
       <aside
-        className={`sidebar-root hidden md:flex flex-col h-screen sticky top-0 bg-white border-r px-4 py-4 transition-all duration-300 ease-in-out ${
+        className={`sidebar-root hidden md:flex flex-col h-screen sticky top-0 bg-white/75 backdrop-blur-xl border-r border-white/60 px-4 py-4 transition-all duration-300 ease-in-out ${
           collapsed ? "w-20" : "w-64"
         }`}
       >
@@ -218,7 +225,7 @@ export default function Sidebar({ mobileOpen = false, onClose }: Props) {
 
 
         <nav className="flex-1 space-y-5 overflow-y-auto pr-1">
-          {nav(collapsed)}
+          {nav(collapsed, "aktif-desktop")}
         </nav>
 
         {bottom(collapsed)}
@@ -236,7 +243,7 @@ export default function Sidebar({ mobileOpen = false, onClose }: Props) {
               </button>
             </div>
             <nav className="flex-1 space-y-5 overflow-y-auto" onClick={onClose}>
-              {nav(false)}
+              {nav(false, "aktif-mobile")}
             </nav>
             <div onClick={onClose}>{bottom(false)}</div>
           </div>
