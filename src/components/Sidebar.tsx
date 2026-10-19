@@ -209,7 +209,7 @@ export default function Sidebar({ mobileOpen = false, onClose }: Props) {
         </div>
 
 
-        <nav className="flex-1 space-y-5 overflow-y-auto pr-1">
+        <nav className="sidebar-scroll flex-1 space-y-5 overflow-y-auto -mr-2 pr-1">
           {nav(collapsed, "aktif-desktop")}
         </nav>
 
@@ -227,7 +227,7 @@ export default function Sidebar({ mobileOpen = false, onClose }: Props) {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <nav className="flex-1 space-y-5 overflow-y-auto" onClick={onClose}>
+            <nav className="sidebar-scroll flex-1 space-y-5 overflow-y-auto -mr-2 pr-1" onClick={onClose}>
               {nav(false, "aktif-mobile")}
             </nav>
             <div onClick={onClose}>{bottom(false)}</div>
