@@ -280,8 +280,9 @@ function TabKuota() {
         {keys.map((k) => {
           const limit = quotaLimit(k);
           const used = usage[k];
-          const pct = limit ? Math.min(100, (used / limit) * 100) : 0;
           const sisa = limit === null ? null : Math.max(0, limit - used);
+          // bilah menunjukkan sisa kuota: penuh di awal periode, berkurang setiap dipakai
+          const pct = limit ? Math.min(100, ((sisa ?? 0) / limit) * 100) : 0;
           const warna =
             limit === null
               ? "bg-emerald-500"
@@ -304,7 +305,7 @@ function TabKuota() {
               </div>
               <div className="mt-2 h-2.5 rounded-full bg-gray-100 overflow-hidden">
                 <div
-                  className={`h-full rounded-full ${warna}`}
+                  className={`h-full rounded-full transition-all duration-500 ${warna}`}
                   style={{ width: limit === null ? "100%" : `${pct}%` }}
                 />
               </div>
