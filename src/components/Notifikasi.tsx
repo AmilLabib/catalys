@@ -43,7 +43,7 @@ function waktuLalu(menit: number) {
 
 export default function Notifikasi() {
   const navigate = useNavigate();
-  const { role, cabang, cabangList, sesi, quotaRemaining, akun } = useAccount();
+  const { role, cabang, cabangList, sesi, quotaRemaining, quotaPeriode, akun } = useAccount();
   const { bahan } = useBahanBaku();
   const [buka, setBuka] = useState(false);
   const [hanyaBelum, setHanyaBelum] = useState(false);
@@ -116,13 +116,14 @@ export default function Notifikasi() {
 
     // kuota scan struk
     const sisaScan = quotaRemaining("scanStruk");
-    if (sisaScan !== null && sisaScan > 0 && sisaScan <= 50)
+    const periodeScan = quotaPeriode("scanStruk");
+    if (sisaScan !== null && sisaScan > 0 && sisaScan <= 2)
       n.push({
-        id: `kuota-scan-${akun}-${sisaScan <= 10 ? "kritis" : "rendah"}`,
+        id: `kuota-scan-${akun}-${periodeScan}-${sisaScan <= 1 ? "kritis" : "rendah"}`,
         ikon: ScanLine,
         judul: (
           <>
-            Token scan struk minggu ini tinggal <b>{sisaScan}</b>. {role === "induk" ? "Upgrade paket untuk menambah kuota." : "Hubungi akun Induk untuk upgrade."}
+            Token scan struk {periodeScan === "harian" ? "hari ini " : ""}tinggal <b>{sisaScan}</b>. {role === "induk" ? "Upgrade paket untuk menambah kuota." : "Hubungi akun Induk untuk upgrade."}
           </>
         ),
         menit: 95,
@@ -198,7 +199,7 @@ export default function Notifikasi() {
     );
 
     return n.sort((a, b) => a.menit - b.menit);
-  }, [bahan, sesi, quotaRemaining, akun, role, cabang, cabangList]);
+  }, [bahan, sesi, quotaRemaining, quotaPeriode, akun, role, cabang, cabangList]);
 
   const belumDibaca = daftar.filter((x) => !dibaca.includes(x.id));
   const tampil = hanyaBelum ? belumDibaca : daftar;

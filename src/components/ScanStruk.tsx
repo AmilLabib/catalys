@@ -9,7 +9,7 @@ import { useInventory } from "../context/InventoryContext";
 import { useBahanBaku } from "../context/BahanBakuContext";
 import QuotaBadge from "./QuotaBadge";
 import { formatRp } from "../data/laporan";
-import { lockedMessage } from "../config/access";
+import { lockedMessage, pesanKuotaHabis } from "../config/access";
 import Lapisan from "../components/Lapisan";
 import IlustrasiStruk from "./IlustrasiStruk";
 
@@ -24,7 +24,7 @@ const ScanStruk = forwardRef<ScanStrukHandle, { hanyaPembelian?: boolean; classN
   { hanyaPembelian = false, className = "" },
   ref,
 ) {
-  const { canUse, quotaLimit, quotaRemaining, pakaiKuota, role } = useAccount();
+  const { canUse, quotaLimit, quotaRemaining, pakaiKuota, role, plan } = useAccount();
   const { toast } = useToast();
   const { entries, setEntries } = useJournal();
   const { accounts } = useChartOfAccounts();
@@ -74,7 +74,7 @@ const ScanStruk = forwardRef<ScanStrukHandle, { hanyaPembelian?: boolean; classN
   };
 
   const buka = (j: "penjualan" | "pembelian") => {
-    if (sisa === 0) return toast("Token scan struk habis untuk minggu ini.", "peringatan");
+    if (sisa === 0) return toast(pesanKuotaHabis("scanStruk", plan), "peringatan");
     setJenis(j);
     setFoto(null);
     setModalKamera(true);
@@ -105,7 +105,7 @@ const ScanStruk = forwardRef<ScanStrukHandle, { hanyaPembelian?: boolean; classN
   };
 
   const analisis = () => {
-    if (!pakaiKuota("scanStruk")) return toast("Token scan struk habis untuk minggu ini.", "peringatan");
+    if (!pakaiKuota("scanStruk")) return toast(pesanKuotaHabis("scanStruk", plan), "peringatan");
     setMenganalisis(true);
     // OCR masih simulasi: isi struk diganti data contoh
     setTimeout(() => {

@@ -24,11 +24,13 @@ import { useJournal } from "../context/JournalContext";
 import { useBusinessSector, SECTOR_OPTIONS } from "../context/BusinessSectorContext";
 import Modal from "../components/Modal";
 import {
+  CATATAN_HARGA,
   PLANS,
   PLAN_LABEL,
   PLAN_ORDER,
   ROLE_LABEL,
   QUOTA_INFO,
+  PERIODE_LABEL,
   type Plan,
   type QuotaKey,
 } from "../config/access";
@@ -45,8 +47,8 @@ const TABS = [
 type TabKey = (typeof TABS)[number]["key"];
 
 const TAGIHAN = [
-  { no: "INV-2026-009", tanggal: "01 Sep 2026", paket: "Pro", jumlah: "Rp 43.000", status: "Lunas" },
-  { no: "INV-2026-008", tanggal: "01 Agu 2026", paket: "Pro", jumlah: "Rp 43.000", status: "Lunas" },
+  { no: "INV-2026-009", tanggal: "01 Sep 2026", paket: "Pro", jumlah: "Rp 105.000", status: "Lunas" },
+  { no: "INV-2026-008", tanggal: "01 Agu 2026", paket: "Pro", jumlah: "Rp 105.000", status: "Lunas" },
   { no: "INV-2026-007", tanggal: "01 Jul 2026", paket: "Gratis", jumlah: "Rp 0", status: "Lunas" },
 ];
 
@@ -252,7 +254,13 @@ function TabPaket() {
               )}
               <h4 className="text-lg font-bold text-primary">{PLAN_LABEL[p.key]}</h4>
               <p className="text-sm text-gray-500 mt-1 min-h-[40px]">{p.deskripsi}</p>
-              <p className="mt-3 text-xl font-extrabold text-gray-900">{p.harga}</p>
+              {p.hargaNormal && (
+                <p className="mt-3 text-xs text-gray-500">
+                  <span className="line-through">{p.hargaNormal}</span>{" "}
+                  <span className="font-semibold text-emerald-700">{CATATAN_HARGA}</span>
+                </p>
+              )}
+              <p className={`${p.hargaNormal ? "mt-0.5" : "mt-3"} text-xl font-extrabold text-gray-900`}>{p.harga}</p>
               <ul className="mt-4 space-y-2 text-sm text-gray-700 flex-1">
                 {p.fitur.map((f) => (
                   <li key={f} className="flex gap-2">
@@ -280,15 +288,14 @@ function TabPaket() {
 }
 
 function TabKuota() {
-  const { quotaLimit, usage, sesiTambahan } = useAccount();
-  const keys: QuotaKey[] = ["scanStruk", "hargaCerdas", "konsultasi", "eksporLaporan"];
+  const { quotaLimit, quotaRemaining, quotaPeriode, sesiTambahan } = useAccount();
+  const keys: QuotaKey[] = ["scanStruk", "hargaCerdas", "aiBot", "konsultasi", "eksporLaporan"];
   return (
     <Card title="Penggunaan Kuota" desc="Sisa token untuk fitur berbatas pada paket Anda.">
       <div className="space-y-5">
         {keys.map((k) => {
           const limit = quotaLimit(k);
-          const used = usage[k];
-          const sisa = limit === null ? null : Math.max(0, limit - used);
+          const sisa = quotaRemaining(k);
           // bilah menunjukkan sisa kuota: penuh di awal periode, berkurang setiap dipakai
           const pct = limit ? Math.min(100, ((sisa ?? 0) / limit) * 100) : 0;
           const warna =
@@ -307,8 +314,10 @@ function TabKuota() {
                   {limit === null
                     ? "Tanpa batas"
                     : limit === 0
-                      ? "Tidak termasuk paket"
-                      : `Sisa ${sisa} dari ${limit} (${QUOTA_INFO[k].periode})`}
+                      ? k === "konsultasi"
+                        ? "Beli sesi di halaman Konsultasi"
+                        : "Tidak termasuk paket"
+                      : `Sisa ${sisa} dari ${limit} (${PERIODE_LABEL[quotaPeriode(k)]})`}
                 </span>
               </div>
               <div className="mt-2 h-2.5 rounded-full bg-gray-100 overflow-hidden">

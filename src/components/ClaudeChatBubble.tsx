@@ -1,9 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { MessageCircle, X, Send, Loader2 } from "lucide-react";
 import { useLocation } from "react-router-dom";
+import { useAccount } from "../context/AccountContext";
+import { pesanKuotaHabis } from "../config/access";
+import QuotaBadge from "./QuotaBadge";
 
 export default function ClaudeChatBubble() {
   const location = useLocation();
+  const { plan, quotaRemaining, pakaiKuota } = useAccount();
   const [isOpen, setIsOpen] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
   const [message, setMessage] = useState("");
@@ -51,6 +55,16 @@ export default function ClaudeChatBubble() {
 
     const userMessage = message.trim();
     setMessage("");
+
+    // kuota dipotong hanya bila bot berhasil menjawab
+    if (quotaRemaining("aiBot") === 0) {
+      setChatHistory((prev) => [
+        ...prev,
+        { role: "user", content: userMessage },
+        { role: "assistant", content: pesanKuotaHabis("aiBot", plan) },
+      ]);
+      return;
+    }
 
     // Add user message
     const updatedHistory = [
@@ -116,6 +130,7 @@ Jika user bertanya "ini halaman apa?" atau "bagaimana cara pakainya?", atau memi
           ? response.content[0].text
           : "Respons diterima.";
 
+      pakaiKuota("aiBot");
       setChatHistory((prev) => [
         ...prev,
         { role: "assistant", content: replyText },
@@ -221,7 +236,10 @@ Jika user bertanya "ini halaman apa?" atau "bagaimana cara pakainya?", atau memi
           </div>
 
           {/* Input Area */}
-          <div className="p-3 bg-white border-t border-gray-100 flex items-center gap-2">
+          <div className="px-3 pt-2 bg-white border-t border-gray-100">
+            <QuotaBadge kuota="aiBot" />
+          </div>
+          <div className="p-3 pt-2 bg-white flex items-center gap-2">
             <input
               type="text"
               value={message}

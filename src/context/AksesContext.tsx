@@ -158,8 +158,8 @@ function DialogBukaCabang({ onTutup }: { onTutup: () => void }) {
         <p className="mt-1 text-sm text-gray-600">
           {BATAS_CABANG[plan] === 0
             ? "Paket Gratis belum termasuk membuka cabang."
-            : `Paket ${PLAN_LABEL[plan]} dapat membuka hingga ${BATAS_CABANG[plan]} cabang baru.`}{" "}
-          Upgrade paket untuk menambah cabang (Pro: 2 cabang, Bisnis: tanpa batas).
+            : `Paket ${PLAN_LABEL[plan]} maksimal ${(BATAS_CABANG[plan] ?? 0) + 1} cabang (${CABANG_UTAMA} + ${BATAS_CABANG[plan]} cabang baru).`}{" "}
+          Upgrade paket untuk menambah cabang (Pro: hingga 3 cabang, Bisnis: tanpa batas).
         </p>
         <button
           onClick={() => {

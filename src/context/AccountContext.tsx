@@ -5,11 +5,13 @@ import {
   FEATURES,
   KANTOR_PUSAT,
   QUOTA_LIMITS,
+  QUOTA_PERIODE,
   lockedMessage,
   pesanPeran,
   planAtLeast,
   type CabangInfo,
   type FeatureKey,
+  type PeriodeKuota,
   type Plan,
   type QuotaKey,
   type Role,
@@ -49,12 +51,19 @@ type AccountState = {
   tokoPantau: string; // cabang yang persediaannya sedang dipantau dari akun induk
   plan: Plan; // satu langganan untuk seluruh usaha, dibeli akun induk
   profile: Profile;
-  usage: Record<string, Pemakaian>; // kuota dihitung per akun
+  usage: Record<string, Pemakaian>; // pemakaian total, dihitung per akun
+  harian: { tanggal: string; usage: Record<string, Pemakaian> }; // pemakaian hari ini, per akun
   sesiTambahan: number;
   sesi: SesiKonsultasi[];
 };
 
-const PEMAKAIAN_AWAL: Pemakaian = { scanStruk: 0, konsultasi: 0, eksporLaporan: 0, hargaCerdas: 0 };
+const PEMAKAIAN_AWAL: Pemakaian = { scanStruk: 0, konsultasi: 0, eksporLaporan: 0, hargaCerdas: 0, aiBot: 0 };
+
+// tanggal lokal YYYY-MM-DD, penanda reset kuota harian
+function hariIni() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 const DEFAULT_STATE: AccountState = {
   akun: "induk",
@@ -70,7 +79,8 @@ const DEFAULT_STATE: AccountState = {
     alamat: "Jl. Pajajaran No. 12, Bogor",
     jabatan: "Pemilik Usaha",
   },
-  usage: { induk: { scanStruk: 88, konsultasi: 0, eksporLaporan: 0, hargaCerdas: 4 } },
+  usage: { induk: { ...PEMAKAIAN_AWAL, scanStruk: 1 } },
+  harian: { tanggal: hariIni(), usage: {} },
   sesiTambahan: 0,
   sesi: [],
 };
@@ -100,6 +110,7 @@ type AccountCtx = Omit<AccountState, "usage"> & {
   alasanTerkunci: (f: FeatureKey) => AlasanTerkunci | null;
   quotaLimit: (q: QuotaKey) => number | null;
   quotaRemaining: (q: QuotaKey) => number | null;
+  quotaPeriode: (q: QuotaKey) => PeriodeKuota;
   pakaiKuota: (q: QuotaKey, amount?: number) => boolean;
   beliSesiTambahan: (jumlah: number) => void;
   jadwalkanSesi: (s: Omit<SesiKonsultasi, "id" | "status">) => boolean;
@@ -122,7 +133,12 @@ function loadState(): AccountState {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const s = JSON.parse(raw) as AccountState;
-      return { ...DEFAULT_STATE, ...s, profile: migrasiProfil(s.profile) };
+      // data sebelum kuota harian: angka pemakaian lama tidak cocok dengan batas baru, mulai dari nol
+      // (sesi konsultasi yang sudah terjadwal tetap dihitung)
+      const usage = s.harian
+        ? s.usage
+        : Object.fromEntries(Object.entries(s.usage ?? {}).map(([k, u]) => [k, { ...PEMAKAIAN_AWAL, konsultasi: u.konsultasi ?? 0 }]));
+      return { ...DEFAULT_STATE, ...s, usage, profile: migrasiProfil(s.profile) };
     }
     // data model lama: pertahankan profil, paket, dan sesi; mulai lagi tanpa cabang
     const lama = localStorage.getItem(STORAGE_LAMA);
@@ -132,7 +148,7 @@ function loadState(): AccountState {
         ...DEFAULT_STATE,
         plan: s.plan ?? DEFAULT_STATE.plan,
         profile: migrasiProfil(s.profile),
-        usage: { induk: { ...PEMAKAIAN_AWAL, ...s.usage } },
+        usage: { induk: { ...PEMAKAIAN_AWAL, konsultasi: s.usage?.konsultasi ?? 0 } },
         sesiTambahan: s.sesiTambahan ?? 0,
         sesi: s.sesi ?? [],
       };
@@ -160,7 +176,9 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   const punyaCabang = state.cabangList.length > 0;
   const role: Role = state.akun === "induk" ? "induk" : "cabang";
   const cabang = role === "cabang" ? state.akun : "";
+  const hari = hariIni();
   const usageAkun = { ...PEMAKAIAN_AWAL, ...state.usage[state.akun] };
+  const usageHariIni = { ...PEMAKAIAN_AWAL, ...(state.harian.tanggal === hari ? state.harian.usage[state.akun] : undefined) };
   const kotaAkun = role === "cabang" ? (state.cabangList.find((c) => c.nama === cabang)?.kota ?? state.kotaUsaha) : state.kotaUsaha;
   // tanpa cabang, induk = usaha tunggal (Konsolidasi berisi Cabang Utama saja)
   const entitasSendiri = role === "induk" ? KONSOLIDASI : cabang;
@@ -183,15 +201,28 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     return base;
   };
 
+  const quotaPeriode = (q: QuotaKey) => QUOTA_PERIODE[q][state.plan];
+
+  // pemakaian yang dihitung terhadap batas: hari ini untuk kuota harian, total untuk lainnya
+  const terpakai = (q: QuotaKey) => (quotaPeriode(q) === "harian" ? usageHariIni : usageAkun)[q];
+
   const quotaRemaining = (q: QuotaKey) => {
     const limit = quotaLimit(q);
     if (limit === null) return null;
-    return Math.max(0, limit - usageAkun[q]);
+    return Math.max(0, limit - terpakai(q));
   };
 
+  // total dan hari ini dicatat bersamaan, agar pindah paket tetap memakai angka yang benar
   const ubahPemakaian = (s: AccountState, q: QuotaKey, delta: number): AccountState => {
-    const kini = { ...PEMAKAIAN_AWAL, ...s.usage[s.akun] };
-    return { ...s, usage: { ...s.usage, [s.akun]: { ...kini, [q]: Math.max(0, kini[q] + delta) } } };
+    const tgl = hariIni();
+    const total = { ...PEMAKAIAN_AWAL, ...s.usage[s.akun] };
+    const harianLama = s.harian.tanggal === tgl ? s.harian.usage : {};
+    const harian = { ...PEMAKAIAN_AWAL, ...harianLama[s.akun] };
+    return {
+      ...s,
+      usage: { ...s.usage, [s.akun]: { ...total, [q]: Math.max(0, total[q] + delta) } },
+      harian: { tanggal: tgl, usage: { ...harianLama, [s.akun]: { ...harian, [q]: Math.max(0, harian[q] + delta) } } },
+    };
   };
 
   const pakaiKuota = (q: QuotaKey, amount = 1) => {
@@ -256,6 +287,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     alasanTerkunci,
     quotaLimit,
     quotaRemaining,
+    quotaPeriode,
     pakaiKuota,
     beliSesiTambahan: (jumlah) => setState((s) => ({ ...s, sesiTambahan: s.sesiTambahan + jumlah })),
     jadwalkanSesi: (sesi) => {

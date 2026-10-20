@@ -1,6 +1,6 @@
 import { Coins } from "lucide-react";
 import { useAccount } from "../context/AccountContext";
-import { QUOTA_INFO, type QuotaKey } from "../config/access";
+import { PERIODE_LABEL, QUOTA_INFO, type QuotaKey } from "../config/access";
 
 // Label kecil sisa token yang ditaruh di dekat tombol fiturnya.
 export default function QuotaBadge({
@@ -10,10 +10,11 @@ export default function QuotaBadge({
   kuota: QuotaKey;
   className?: string;
 }) {
-  const { quotaLimit, quotaRemaining } = useAccount();
+  const { quotaLimit, quotaRemaining, quotaPeriode } = useAccount();
   const limit = quotaLimit(kuota);
   const sisa = quotaRemaining(kuota);
   const info = QUOTA_INFO[kuota];
+  const periode = quotaPeriode(kuota);
 
   if (limit === null || sisa === null) {
     return (
@@ -35,11 +36,11 @@ export default function QuotaBadge({
 
   return (
     <span
-      title={`${info.label} tersisa ${sisa} dari ${limit} (${info.periode})`}
+      title={`${info.label} tersisa ${sisa} dari ${limit} (${PERIODE_LABEL[periode]})`}
       className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ${tone} ${className}`}
     >
       <Coins className="w-3.5 h-3.5" />
-      Sisa {sisa}/{limit} {info.periode === "total" ? "" : info.periode}
+      Sisa {sisa}/{limit} {periode === "harian" ? PERIODE_LABEL.harian : ""}
       {sisa === 0 && " · habis"}
     </span>
   );

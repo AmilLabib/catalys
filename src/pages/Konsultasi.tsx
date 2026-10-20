@@ -5,6 +5,7 @@ import { usePageTitle } from "../hooks/usePageTitle";
 import { useAccount } from "../context/AccountContext";
 import { useToast } from "../context/ToastContext";
 import QuotaBadge from "../components/QuotaBadge";
+import { PAKET_SESI } from "../config/access";
 import { rayakan } from "../utils/efek";
 
 const PAKAR = [
@@ -260,20 +261,24 @@ export default function Konsultasi() {
               <ShoppingBag className="w-5 h-5" />
               <h3 className="font-semibold">Beli Sesi Tambahan</h3>
             </div>
-            <p className="mt-2 text-sm text-white/80">Paket 4 sesi konsultasi bisnis dengan prioritas jadwal dan tindak lanjut lewat email.</p>
+            <p className="mt-2 text-sm text-white/80">
+              Paket {PAKET_SESI.jumlah} sesi konsultasi bisnis, bisa dibeli di semua paket langganan, dengan tindak lanjut lewat email.
+            </p>
             <ul className="mt-3 space-y-1 text-sm text-white/90">
-              {["4x sesi konsultasi", "Prioritas jadwal", "Ringkasan sesi via email"].map((x) => (
+              {[`${PAKET_SESI.jumlah}x sesi konsultasi`, "Prioritas jadwal", "Ringkasan sesi via email"].map((x) => (
                 <li key={x} className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-300" /> {x}
                 </li>
               ))}
             </ul>
             <div className="mt-4 flex items-center justify-between gap-3">
-              <p className="text-xl font-extrabold">Rp 195.000</p>
+              <p className="text-xl font-extrabold">
+                {PAKET_SESI.harga} <span className="text-xs font-medium text-white/70">/ {PAKET_SESI.jumlah} sesi</span>
+              </p>
               <button
                 onClick={() => {
-                  beliSesiTambahan(4);
-                  toast("4 sesi tambahan berhasil ditambahkan (mode demo)");
+                  beliSesiTambahan(PAKET_SESI.jumlah);
+                  toast(`${PAKET_SESI.jumlah} sesi tambahan berhasil ditambahkan (mode demo)`);
                 }}
                 className="rounded-full bg-white px-5 py-2 text-sm font-semibold text-primary hover:bg-white/90"
               >

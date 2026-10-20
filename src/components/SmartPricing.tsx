@@ -11,6 +11,7 @@ import {
 import { useAccount } from "../context/AccountContext";
 import { useToast } from "../context/ToastContext";
 import QuotaBadge from "./QuotaBadge";
+import { pesanKuotaHabis } from "../config/access";
 import BrandIcon, { type Brand } from "./BrandIcon";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { useInventory } from "../context/InventoryContext";
@@ -100,7 +101,7 @@ export default function SmartPricing() {
   const [gambar, setGambar] = useState<string | undefined>();
   const [skenario, setSkenario] = useState<Skenario>("normal");
   const [memuat, setMemuat] = useState(false);
-  const { kotaAkun, pakaiKuota, quotaRemaining } = useAccount();
+  const { kotaAkun, pakaiKuota, quotaRemaining, plan } = useAccount();
   const { toast } = useToast();
   // wilayah default mengikuti lokasi cabang
   const [kota, setKota] = useState(kotaAkun);
@@ -128,7 +129,7 @@ export default function SmartPricing() {
   const cari = async (namaProduk = nama, hppProduk = Number(hpp), tetapProduk = Number(tetap), vol = Number(volume)) => {
     if (!namaProduk.trim()) return;
     if (!pakaiKuota("hargaCerdas")) {
-      toast("Token Smart Pricing bulan ini habis. Upgrade ke paket Bisnis untuk kuota lebih besar.", "peringatan");
+      toast(pesanKuotaHabis("hargaCerdas", plan), "peringatan");
       return;
     }
     setMemuat(true);
