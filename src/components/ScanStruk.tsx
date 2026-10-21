@@ -1,6 +1,21 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type ChangeEvent } from "react";
 import { Link } from "react-router-dom";
-import { ScanLine, Lock, Camera, ShoppingBag, PackagePlus, ListChecks, FileCheck2 } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import {
+  ScanLine,
+  Lock,
+  Camera,
+  ShoppingBag,
+  PackagePlus,
+  ListChecks,
+  FileCheck2,
+  Upload,
+  Check,
+  Circle,
+  Loader2,
+  AlertTriangle,
+  RotateCcw,
+} from "lucide-react";
 import { useAccount } from "../context/AccountContext";
 import { useToast } from "../context/ToastContext";
 import { useJournal, type JournalEntry } from "../context/JournalContext";
@@ -20,6 +35,17 @@ type ItemStruk = { name: string; price: number; qty: number; bahanId: string };
 // Handle agar komponen lain bisa langsung membuka kamera scan (mis. setelah belanja di supplier)
 export type ScanStrukHandle = { buka: (jenis: "penjualan" | "pembelian") => void };
 
+// Sisi terpanjang foto dibatasi agar request ringan dan token gambar Gemini hemat
+const MAKS_SISI = 1280;
+
+// Tahapan yang ditampilkan selama analisis; aktifnya ditentukan dari persentase progres
+const LANGKAH = ["Mengunggah foto", "AI membaca struk", "Mencocokkan barang"];
+const langkahDari = (p: number) => (p < 18 ? 0 : p < 65 ? 1 : 2);
+
+const jeda = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+type Tahap = "idle" | "proses" | "berhasil" | "gagal";
+
 const ScanStruk = forwardRef<ScanStrukHandle, { hanyaPembelian?: boolean; className?: string }>(function ScanStruk(
   { hanyaPembelian = false, className = "" },
   ref,
@@ -33,13 +59,20 @@ const ScanStruk = forwardRef<ScanStrukHandle, { hanyaPembelian?: boolean; classN
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [kameraAktif, setKameraAktif] = useState(false);
   const [foto, setFoto] = useState<string | null>(null);
   const [errorKamera, setErrorKamera] = useState<string | null>(null);
   const [modalKamera, setModalKamera] = useState(false);
   const [jenis, setJenis] = useState<"penjualan" | "pembelian" | null>(null);
-  const [menganalisis, setMenganalisis] = useState(false);
+  const [tahap, setTahap] = useState<Tahap>("idle");
+  const [progres, setProgres] = useState(0);
+  const [pesanGagal, setPesanGagal] = useState("");
+  const [jumlahTerbaca, setJumlahTerbaca] = useState(0);
+  // naik tiap modal ditutup, agar hasil analisis yang telat tidak membuka konfirmasi
+  const sesiRef = useRef(0);
+  const kurangGerak = useReducedMotion();
   const [data, setData] = useState<ItemStruk[] | null>(null);
 
   const tersedia = (quotaLimit("scanStruk") ?? 1) > 0 && canUse("laporanKeuangan");
@@ -53,6 +86,13 @@ const ScanStruk = forwardRef<ScanStrukHandle, { hanyaPembelian?: boolean; classN
   };
 
   useEffect(() => () => matikanKamera(), []);
+
+  // Progres semu: mendekati 92% selama menunggu, baru penuh saat hasil datang
+  useEffect(() => {
+    if (tahap !== "proses") return;
+    const t = setInterval(() => setProgres((p) => p + (92 - p) * 0.05), 120);
+    return () => clearInterval(t);
+  }, [tahap]);
 
   const nyalakanKamera = async () => {
     try {
@@ -89,44 +129,109 @@ const ScanStruk = forwardRef<ScanStrukHandle, { hanyaPembelian?: boolean; classN
   }));
 
   const tutup = () => {
+    sesiRef.current++;
     setModalKamera(false);
     matikanKamera();
     setFoto(null);
+    setTahap("idle");
+  };
+
+  const kecilkan = (src: CanvasImageSource, w: number, h: number) => {
+    const c = canvasRef.current;
+    if (!c) return null;
+    const s = Math.min(1, MAKS_SISI / Math.max(w, h));
+    c.width = Math.round(w * s);
+    c.height = Math.round(h * s);
+    c.getContext("2d")?.drawImage(src, 0, 0, c.width, c.height);
+    return c.toDataURL("image/jpeg", 0.8);
   };
 
   const ambilFoto = () => {
     const v = videoRef.current;
-    const c = canvasRef.current;
-    if (!v || !c || !v.videoWidth) return;
-    c.width = v.videoWidth;
-    c.height = v.videoHeight;
-    c.getContext("2d")?.drawImage(v, 0, 0);
-    setFoto(c.toDataURL("image/jpeg", 0.8));
+    if (!v || !v.videoWidth) return;
+    setFoto(kecilkan(v, v.videoWidth, v.videoHeight));
   };
 
-  const analisis = () => {
-    if (!pakaiKuota("scanStruk")) return toast(pesanKuotaHabis("scanStruk", plan), "peringatan");
-    setMenganalisis(true);
-    // OCR masih simulasi: isi struk diganti data contoh
-    setTimeout(() => {
-      if (jenis === "penjualan") {
-        setData(
-          products.slice(0, 3).map((p, i) => ({ name: p.name, price: p.sellingPrice * (i + 1), qty: i + 1, bahanId: "" })),
-        );
-      } else {
-        // struk belanja: bahan yang paling menipis + satu barang non-persediaan
-        const butuh = [...bahan].sort((a, b) => a.stok / (a.stokMin || 1) - b.stok / (b.stokMin || 1)).slice(0, 3);
-        setData([
-          ...butuh.map((b) => {
-            const qty = Math.max(1, Math.round(b.stokMin));
-            return { name: b.nama, qty, price: Math.round((qty * b.harga * 1.02) / 100) * 100, bahanId: b.id };
-          }),
-          { name: "Kertas struk thermal", qty: 2, price: 34_000, bahanId: "" },
-        ]);
-      }
-      setMenganalisis(false);
+  const pilihFile = (e: ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) return;
+    const url = URL.createObjectURL(f);
+    const img = new Image();
+    img.onload = () => {
+      setFoto(kecilkan(img, img.naturalWidth, img.naturalHeight));
+      URL.revokeObjectURL(url);
+    };
+    img.onerror = () => {
+      toast("File gambar tidak dapat dibaca.", "peringatan");
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
+  };
+
+  // Struk contoh untuk demo tanpa foto (atau saat kamera tidak tersedia)
+  const dataContoh = (): ItemStruk[] => {
+    if (jenis === "penjualan") {
+      return products.slice(0, 3).map((p, i) => ({ name: p.name, price: p.sellingPrice * (i + 1), qty: i + 1, bahanId: "" }));
+    }
+    // struk belanja: bahan yang paling menipis + satu barang non-persediaan
+    const butuh = [...bahan].sort((a, b) => a.stok / (a.stokMin || 1) - b.stok / (b.stokMin || 1)).slice(0, 3);
+    return [
+      ...butuh.map((b) => {
+        const qty = Math.max(1, Math.round(b.stokMin));
+        return { name: b.nama, qty, price: Math.round((qty * b.harga * 1.02) / 100) * 100, bahanId: b.id };
+      }),
+      { name: "Kertas struk thermal", qty: 2, price: 34_000, bahanId: "" },
+    ];
+  };
+
+  const bacaStruk = async (): Promise<ItemStruk[]> => {
+    if (!foto) {
+      await jeda(1600);
+      return dataContoh();
+    }
+    // katalog membantu Gemini menyamakan nama barang di struk dengan data toko
+    const katalog = jenis === "pembelian" ? bahan.map((b) => b.nama) : products.map((p) => p.name);
+    const res = await fetch("/api/scan-struk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ foto, jenis, katalog }),
+    });
+    const hasil = await res.json().catch(() => ({}));
+    if (!res.ok || !Array.isArray(hasil.items)) throw new Error(hasil.error || "Server API tidak merespons. Jalankan ulang npm run dev.");
+    const items: { name: string; qty: number; price: number }[] = hasil.items;
+    if (!items.length) throw new Error("Tidak ada barang terbaca. Foto ulang lebih dekat dan terang.");
+    return items.map((i) => {
+      const b =
+        jenis === "pembelian" ? (bahan.find((x) => x.nama.toLowerCase() === i.name.toLowerCase()) ?? cocokkanBahan(i.name)) : undefined;
+      return { name: i.name, qty: i.qty, price: i.price, bahanId: b?.id ?? "" };
+    });
+  };
+
+  const analisis = async () => {
+    if (sisa === 0) return toast(pesanKuotaHabis("scanStruk", plan), "peringatan");
+    const sesi = sesiRef.current;
+    setProgres(0);
+    setPesanGagal("");
+    setTahap("proses");
+    try {
+      const items = await bacaStruk();
+      if (sesi !== sesiRef.current) return;
+      // kuota baru dipotong setelah struk berhasil terbaca
+      pakaiKuota("scanStruk");
+      setJumlahTerbaca(items.length);
+      setProgres(100);
+      setTahap("berhasil");
+      // beri waktu animasi centang sebelum pindah ke konfirmasi
+      await jeda(1300);
+      if (sesi !== sesiRef.current) return;
+      setData(items);
       tutup();
-    }, 900);
+    } catch (err) {
+      if (sesi !== sesiRef.current) return;
+      setPesanGagal((err instanceof Error && err.message) || "Gagal menganalisis struk.");
+      setTahap("gagal");
+    }
   };
 
   const simpan = () => {
@@ -301,17 +406,171 @@ const ScanStruk = forwardRef<ScanStrukHandle, { hanyaPembelian?: boolean; classN
               </button>
             </div>
             <div className="p-4 bg-gray-50">
-              <div className="w-full bg-black rounded-lg overflow-hidden aspect-[3/4] sm:aspect-video relative flex items-center justify-center">
-                {foto ? (
-                  <img src={foto} alt="Hasil foto struk" className="w-full h-full object-contain" />
-                ) : (
-                  <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
-                )}
-                {errorKamera && !foto && (
+              <motion.div
+                animate={tahap === "gagal" ? { x: [0, -12, 12, -8, 8, -3, 0] } : { x: 0 }}
+                transition={{ duration: 0.5 }}
+                className="w-full bg-black rounded-lg overflow-hidden aspect-[3/4] sm:aspect-video relative flex items-center justify-center"
+              >
+                {foto && <img src={foto} alt="Hasil foto struk" className="w-full h-full object-contain" />}
+                {/* video tetap terpasang agar stream kamera tidak hilang saat "Ulangi" */}
+                <video ref={videoRef} autoPlay playsInline muted className={`w-full h-full object-cover ${foto ? "hidden" : ""}`} />
+                {errorKamera && !foto && tahap === "idle" && (
                   <div className="absolute inset-x-4 top-4 rounded bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700">{errorKamera}</div>
                 )}
-              </div>
-              <div className="mt-4 flex justify-center gap-3">
+
+                <AnimatePresence>
+                  {tahap === "proses" && (
+                    <motion.div key="proses" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-primary/30">
+                      {/* sudut bingkai pemindai */}
+                      {["top-3 left-3 border-t-2 border-l-2", "top-3 right-3 border-t-2 border-r-2", "bottom-3 left-3 border-b-2 border-l-2", "bottom-3 right-3 border-b-2 border-r-2"].map((c) => (
+                        <motion.span
+                          key={c}
+                          className={`absolute w-7 h-7 rounded-sm border-cyan-300 ${c}`}
+                          animate={{ opacity: [0.5, 1, 0.5] }}
+                          transition={{ duration: 1.4, repeat: Infinity }}
+                        />
+                      ))}
+                      {!kurangGerak && (
+                        <motion.div
+                          className="absolute inset-x-4 h-0.5 rounded-full bg-cyan-300 shadow-[0_0_16px_5px_rgba(103,232,249,0.55)]"
+                          animate={{ top: ["6%", "94%"] }}
+                          transition={{ duration: 1.5, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
+                        />
+                      )}
+                    </motion.div>
+                  )}
+
+                  {tahap === "berhasil" && (
+                    <motion.div
+                      key="berhasil"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="absolute inset-0 bg-emerald-950/55 backdrop-blur-[2px] flex flex-col items-center justify-center text-white"
+                    >
+                      <span className="relative flex items-center justify-center">
+                        <motion.span
+                          className="absolute w-20 h-20 rounded-full bg-emerald-400"
+                          initial={{ scale: 1, opacity: 0.6 }}
+                          animate={{ scale: 1.9, opacity: 0 }}
+                          transition={{ duration: 0.9, ease: "easeOut" }}
+                        />
+                        <motion.span
+                          className="relative w-20 h-20 rounded-full bg-emerald-500 shadow-lg flex items-center justify-center"
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ type: "spring", stiffness: 320, damping: 16 }}
+                        >
+                          <svg viewBox="0 0 24 24" className="w-10 h-10" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
+                            <motion.path d="M5 12.5l4.5 4.5L19 7.5" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ delay: 0.2, duration: 0.4 }} />
+                          </svg>
+                        </motion.span>
+                      </span>
+                      <motion.p initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="mt-4 font-semibold">
+                        Struk berhasil terbaca!
+                      </motion.p>
+                      <motion.p initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }} className="text-xs text-white/80">
+                        {jumlahTerbaca} barang ditemukan
+                      </motion.p>
+                    </motion.div>
+                  )}
+
+                  {tahap === "gagal" && (
+                    <motion.div
+                      key="gagal"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="absolute inset-0 bg-red-950/55 backdrop-blur-[2px] flex flex-col items-center justify-center text-white"
+                    >
+                      <motion.span
+                        className="w-20 h-20 rounded-full bg-red-500 shadow-lg flex items-center justify-center"
+                        initial={{ scale: 0, rotate: -45 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 15 }}
+                      >
+                        <svg viewBox="0 0 24 24" className="w-9 h-9" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round">
+                          <motion.path d="M7 7l10 10" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ delay: 0.2, duration: 0.25 }} />
+                          <motion.path d="M17 7L7 17" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ delay: 0.4, duration: 0.25 }} />
+                        </svg>
+                      </motion.span>
+                      <motion.p initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="mt-4 font-semibold">
+                        Struk gagal dianalisis
+                      </motion.p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+
+              {(tahap === "proses" || tahap === "berhasil") && (
+                <div className="mt-4 space-y-3">
+                  <div className="flex justify-between text-xs font-medium text-gray-600">
+                    <span>{tahap === "berhasil" ? "Selesai" : `${LANGKAH[langkahDari(progres)]}...`}</span>
+                    <span className="tabular-nums">{Math.round(progres)}%</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-gray-200 overflow-hidden">
+                    <motion.div
+                      className={`h-full rounded-full ${tahap === "berhasil" ? "bg-emerald-500" : "bg-primary"}`}
+                      animate={{ width: `${progres}%` }}
+                      transition={{ ease: "easeOut", duration: 0.3 }}
+                    />
+                  </div>
+                  <ol className="grid grid-cols-3 gap-2 text-[11px]">
+                    {LANGKAH.map((t, i) => {
+                      const aktif = langkahDari(progres);
+                      const selesai = tahap === "berhasil" || i < aktif;
+                      return (
+                        <li
+                          key={t}
+                          className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 transition-colors ${
+                            selesai ? "bg-emerald-50 text-emerald-700" : i === aktif ? "bg-white text-gray-800 ring-1 ring-gray-200" : "text-gray-400"
+                          }`}
+                        >
+                          {selesai ? (
+                            <Check className="w-3.5 h-3.5 shrink-0" />
+                          ) : i === aktif ? (
+                            <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin" />
+                          ) : (
+                            <Circle className="w-3.5 h-3.5 shrink-0" />
+                          )}
+                          {t}
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </div>
+              )}
+
+              {tahap === "gagal" && (
+                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mt-4">
+                  <div className="flex gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-red-700">
+                    <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <div className="text-xs">
+                      <p className="font-semibold text-sm">Struk tidak dapat dibaca</p>
+                      <p className="mt-0.5">{pesanGagal}</p>
+                      <p className="mt-1 text-red-500">Token scan tidak terpakai.</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex justify-center gap-3">
+                    <button
+                      onClick={() => {
+                        setFoto(null);
+                        setTahap("idle");
+                      }}
+                      className="rounded-full border bg-white px-4 py-2 text-sm"
+                    >
+                      Foto Ulang
+                    </button>
+                    <button onClick={analisis} className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-white">
+                      <RotateCcw className="w-4 h-4" /> Coba Lagi
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+
+              {tahap === "idle" && (
+              <>
+              <div className="mt-4 flex flex-wrap justify-center gap-3">
                 {!foto && (
                   <button
                     onClick={ambilFoto}
@@ -321,16 +580,24 @@ const ScanStruk = forwardRef<ScanStrukHandle, { hanyaPembelian?: boolean; classN
                     <Camera className="w-4 h-4" /> Ambil Foto
                   </button>
                 )}
+                {!foto && (
+                  <button onClick={() => fileRef.current?.click()} className="inline-flex items-center gap-2 rounded-full border bg-white px-4 py-2.5 text-sm">
+                    <Upload className="w-4 h-4" /> Unggah Foto
+                  </button>
+                )}
+                <input ref={fileRef} type="file" accept="image/*" onChange={pilihFile} className="hidden" />
                 {foto && (
                   <button onClick={() => setFoto(null)} className="rounded-full border bg-white px-4 py-2 text-sm">
                     Ulangi
                   </button>
                 )}
-                <button onClick={analisis} disabled={menganalisis} className="rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-white disabled:opacity-60">
-                  {menganalisis ? "Menganalisis..." : foto ? "Analisis Struk" : "Pakai Struk Contoh"}
+                <button onClick={analisis} className="rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-white">
+                  {foto ? "Analisis Struk" : "Pakai Struk Contoh"}
                 </button>
               </div>
               <p className="mt-2 text-center text-[11px] text-gray-500">Setiap analisis memakai 1 token scan struk.</p>
+              </>
+              )}
             </div>
           </div>
         </Lapisan>

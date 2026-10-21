@@ -1,17 +1,22 @@
 import express from "express";
 import dotenv from "dotenv";
+import scanStruk from "../../api/scan-struk.js";
 
 dotenv.config();
 
 const app = express();
-app.use(express.json());
+// foto struk dikirim sebagai base64, default 100kb terlalu kecil
+app.use(express.json({ limit: "5mb" }));
+
+app.post("/api/scan-struk", scanStruk);
 
 const PORT = process.env.PORT || 4000;
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
 
 // 🟢 KITA KUNCI MODELNYA DI SINI
-// Gak usah auto-detect lagi biar gak nyasar ke model beta/berat
-const MODEL_NAME = "gemini-2.0-flash-lite-preview";
+// Gak usah auto-detect lagi biar gak nyasar ke model beta/berat.
+// Samain sama scan struk: Flash-Lite, paling hemat (bisa diganti via GEMINI_MODEL)
+const MODEL_NAME = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
 
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 
@@ -56,4 +61,7 @@ app.post("/api/gemini", async (req, res) => {
   }
 });
 
-app.listen(PORT, () => console.log(`Server listening on ${PORT}`));
+app
+  .listen(PORT, () => console.log(`Server listening on ${PORT}`))
+  // port terpakai (mis. start:server sudah jalan) jangan sampai mematikan Vite
+  .on("error", (err) => console.error(`Server API gagal jalan di port ${PORT}:`, err.message));
