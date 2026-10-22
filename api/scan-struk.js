@@ -20,15 +20,17 @@ const skema = {
           qty: { type: "NUMBER" },
           // teks apa adanya: model sering membaca "112.500" sebagai 112,5
           price: { type: "STRING" },
+          discount: { type: "STRING" },
         },
         required: ["name", "qty", "price"],
       },
     },
+    receiptDiscount: { type: "STRING" },
   },
   required: ["items"],
 };
 
-// "112.500" / "Rp 112.500,00" -> 112500 (titik & koma Rupiah = pemisah ribuan, sen dibuang)
+// "112.500" / "Rp 112.500,00" / "-10.000" -> 112500 (titik & koma Rupiah = pemisah ribuan, sen dibuang, nilai selalu positif)
 const keRupiah = (teks) => Number(String(teks ?? "").replace(/[.,]\d{1,2}$/, "").replace(/\D/g, "")) || 0;
 
 export default async function handler(req, res) {
@@ -42,13 +44,19 @@ export default async function handler(req, res) {
   if (!cocok) return res.status(400).json({ error: "Foto struk tidak valid atau terlalu besar." });
 
   const daftar = Array.isArray(katalog) ? katalog.filter((x) => typeof x === "string").slice(0, MAKS_KATALOG) : [];
-  // Prompt dibuat singkat agar token input hemat
+  // Prompt dibuat terarah agar mendeteksi diskon per item & diskon total struk
   const prompt =
-    `Baca foto struk ${jenis === "penjualan" ? "penjualan" : "pembelian"} ini. ` +
-    "Kembalikan setiap baris barang: name, qty (jumlah), price (total harga baris, salin persis seperti tertulis; titik adalah pemisah ribuan). " +
-    "Abaikan subtotal, total, pajak, kembalian, dan baris yang bukan barang. " +
+    `Baca foto struk ${jenis === "penjualan" ? "penjualan" : "pembelian"} ini secara teliti. ` +
+    "Ekstrak setiap barang yang dibeli/dijual ke dalam items: " +
+    "- name: nama barang. " +
+    "- qty: kuantitas/jumlah barang (angka, default 1). " +
+    "- price: total harga baris barang sebelum dipotong diskon barang (salin angka persis seperti tertulis; titik adalah pemisah ribuan). " +
+    "- discount: nominal diskon atau potongan harga khusus untuk barang tersebut bila ada (misal baris Disc/Promo/Hemat di bawah item), atau '0' jika tidak ada diskon per barang. " +
+    "Jika ada diskon keseluruhan transaksi, voucher, promo member, kupon, atau potongan belanja di bagian bawah/subtotal struk, masukkan nominalnya ke receiptDiscount (atau '0' bila tidak ada). " +
+    "Jangan masukkan baris diskon/voucher sebagai barang di items. " +
+    "Abaikan subtotal, total akhir, pajak, kembalian, dan metode pembayaran. " +
     (daftar.length ? `Bila barang sama dengan nama di katalog, pakai nama katalog persis. Katalog: ${daftar.join("; ")}. ` : "") +
-    "Bila gambar bukan struk, kembalikan items kosong.";
+    "Bila gambar bukan struk, kembalikan items kosong dan receiptDiscount '0'.";
 
   try {
     const r = await fetch(`${BASE_URL}/models/${process.env.GEMINI_MODEL || MODEL_DEFAULT}:generateContent`, {
@@ -72,11 +80,43 @@ export default async function handler(req, res) {
       return res.status(r.status).json({ error: pesan });
     }
 
-    const teks = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '{"items":[]}';
-    const items = (JSON.parse(teks).items ?? [])
-      .map((i) => ({ name: String(i.name ?? "").trim(), qty: Number(i.qty) || 1, price: keRupiah(i.price) }))
-      .filter((i) => i.name);
-    res.status(200).json({ items, token: data.usageMetadata?.totalTokenCount });
+    const teks = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '{"items":[],"receiptDiscount":"0"}';
+    let parsed = { items: [], receiptDiscount: "0" };
+    try {
+      parsed = JSON.parse(teks);
+    } catch {
+      parsed = { items: [] };
+    }
+
+    let receiptDiscount = keRupiah(parsed.receiptDiscount);
+    const items = [];
+
+    for (const i of parsed.items ?? []) {
+      const rawName = String(i.name ?? "").trim();
+      if (!rawName) continue;
+
+      const p = keRupiah(i.price);
+      const d = keRupiah(i.discount);
+
+      // Tangani kasus jika model memasukkan baris diskon umum/voucher sebagai item
+      if (/^(diskon|disc|voucher|potongan|hemat|cashback|promo)\b/i.test(rawName)) {
+        receiptDiscount += p || d;
+        continue;
+      }
+
+      items.push({
+        name: rawName,
+        qty: Number(i.qty) || 1,
+        price: p,
+        discount: d,
+      });
+    }
+
+    res.status(200).json({
+      items,
+      receiptDiscount,
+      token: data.usageMetadata?.totalTokenCount,
+    });
   } catch (err) {
     console.error("Scan struk error:", err);
     res.status(500).json({ error: "Gagal membaca struk." });

@@ -15,6 +15,7 @@ import {
   Loader2,
   AlertTriangle,
   RotateCcw,
+  Tag,
 } from "lucide-react";
 import { useAccount } from "../context/AccountContext";
 import { useToast } from "../context/ToastContext";
@@ -30,7 +31,7 @@ import IlustrasiStruk from "./IlustrasiStruk";
 
 // Satu baris struk. Untuk struk pembelian, baris yang cocok dengan bahan baku
 // (bahanId) menambah stok persediaan sebanyak `qty`.
-type ItemStruk = { name: string; price: number; qty: number; bahanId: string };
+type ItemStruk = { name: string; price: number; discount: number; qty: number; bahanId: string };
 
 // Handle agar komponen lain bisa langsung membuka kamera scan (mis. setelah belanja di supplier)
 export type ScanStrukHandle = { buka: (jenis: "penjualan" | "pembelian") => void };
@@ -74,6 +75,7 @@ const ScanStruk = forwardRef<ScanStrukHandle, { hanyaPembelian?: boolean; classN
   const sesiRef = useRef(0);
   const kurangGerak = useReducedMotion();
   const [data, setData] = useState<ItemStruk[] | null>(null);
+  const [diskonStruk, setDiskonStruk] = useState<number>(0);
 
   const tersedia = (quotaLimit("scanStruk") ?? 1) > 0 && canUse("laporanKeuangan");
   const sisa = quotaRemaining("scanStruk");
@@ -170,22 +172,41 @@ const ScanStruk = forwardRef<ScanStrukHandle, { hanyaPembelian?: boolean; classN
   };
 
   // Struk contoh untuk demo tanpa foto (atau saat kamera tidak tersedia)
-  const dataContoh = (): ItemStruk[] => {
+  const dataContoh = (): { items: ItemStruk[]; receiptDiscount: number } => {
     if (jenis === "penjualan") {
-      return products.slice(0, 3).map((p, i) => ({ name: p.name, price: p.sellingPrice * (i + 1), qty: i + 1, bahanId: "" }));
+      return {
+        items: products.slice(0, 3).map((p, i) => ({
+          name: p.name,
+          price: p.sellingPrice * (i + 1),
+          discount: i === 0 ? 5_000 : 0,
+          qty: i + 1,
+          bahanId: "",
+        })),
+        receiptDiscount: 5_000,
+      };
     }
     // struk belanja: bahan yang paling menipis + satu barang non-persediaan
     const butuh = [...bahan].sort((a, b) => a.stok / (a.stokMin || 1) - b.stok / (b.stokMin || 1)).slice(0, 3);
-    return [
-      ...butuh.map((b) => {
-        const qty = Math.max(1, Math.round(b.stokMin));
-        return { name: b.nama, qty, price: Math.round((qty * b.harga * 1.02) / 100) * 100, bahanId: b.id };
-      }),
-      { name: "Kertas struk thermal", qty: 2, price: 34_000, bahanId: "" },
-    ];
+    return {
+      items: [
+        ...butuh.map((b, i) => {
+          const qty = Math.max(1, Math.round(b.stokMin));
+          const price = Math.round((qty * b.harga * 1.02) / 100) * 100;
+          return {
+            name: b.nama,
+            qty,
+            price,
+            discount: i === 1 ? Math.round(price * 0.1) : 0,
+            bahanId: b.id,
+          };
+        }),
+        { name: "Kertas struk thermal", qty: 2, price: 34_000, discount: 0, bahanId: "" },
+      ],
+      receiptDiscount: 4_000,
+    };
   };
 
-  const bacaStruk = async (): Promise<ItemStruk[]> => {
+  const bacaStruk = async (): Promise<{ items: ItemStruk[]; receiptDiscount: number }> => {
     if (!foto) {
       await jeda(1600);
       return dataContoh();
@@ -199,13 +220,23 @@ const ScanStruk = forwardRef<ScanStrukHandle, { hanyaPembelian?: boolean; classN
     });
     const hasil = await res.json().catch(() => ({}));
     if (!res.ok || !Array.isArray(hasil.items)) throw new Error(hasil.error || "Server API tidak merespons. Jalankan ulang npm run dev.");
-    const items: { name: string; qty: number; price: number }[] = hasil.items;
+    const items: { name: string; qty: number; price: number; discount?: number }[] = hasil.items;
     if (!items.length) throw new Error("Tidak ada barang terbaca. Foto ulang lebih dekat dan terang.");
-    return items.map((i) => {
+    const mapped = items.map((i) => {
       const b =
         jenis === "pembelian" ? (bahan.find((x) => x.nama.toLowerCase() === i.name.toLowerCase()) ?? cocokkanBahan(i.name)) : undefined;
-      return { name: i.name, qty: i.qty, price: i.price, bahanId: b?.id ?? "" };
+      return {
+        name: i.name,
+        qty: Number(i.qty) || 1,
+        price: Number(i.price) || 0,
+        discount: Number(i.discount) || 0,
+        bahanId: b?.id ?? "",
+      };
     });
+    return {
+      items: mapped,
+      receiptDiscount: Number(hasil.receiptDiscount) || 0,
+    };
   };
 
   const analisis = async () => {
@@ -215,17 +246,18 @@ const ScanStruk = forwardRef<ScanStrukHandle, { hanyaPembelian?: boolean; classN
     setPesanGagal("");
     setTahap("proses");
     try {
-      const items = await bacaStruk();
+      const hasil = await bacaStruk();
       if (sesi !== sesiRef.current) return;
       // kuota baru dipotong setelah struk berhasil terbaca
       pakaiKuota("scanStruk");
-      setJumlahTerbaca(items.length);
+      setJumlahTerbaca(hasil.items.length);
       setProgres(100);
       setTahap("berhasil");
       // beri waktu animasi centang sebelum pindah ke konfirmasi
       await jeda(1300);
       if (sesi !== sesiRef.current) return;
-      setData(items);
+      setData(hasil.items);
+      setDiskonStruk(hasil.receiptDiscount);
       tutup();
     } catch (err) {
       if (sesi !== sesiRef.current) return;
@@ -236,13 +268,19 @@ const ScanStruk = forwardRef<ScanStrukHandle, { hanyaPembelian?: boolean; classN
 
   const simpan = () => {
     if (!data || !jenis) return;
-    const total = data.reduce((s, i) => s + (Number(i.price) || 0), 0);
-    if (total <= 0) return toast("Total struk harus lebih dari 0.", "peringatan");
+    const subtotal = data.reduce((s, i) => s + (Number(i.price) || 0), 0);
+    const diskonItem = data.reduce((s, i) => s + (Number(i.discount) || 0), 0);
+    const totalDiskon = diskonItem + (Number(diskonStruk) || 0);
+    const total = Math.max(0, subtotal - totalDiskon);
+
+    if (total <= 0 && subtotal <= 0) return toast("Total struk harus lebih dari 0.", "peringatan");
     const byCode = (code: string) => accounts.find((a) => a.code === code)?.id;
     const kas = byCode("1.1.1.01");
     const hari = new Date().toISOString().slice(0, 10);
     const now = Date.now();
     const baru: JournalEntry[] = [];
+    const ketDiskon = totalDiskon > 0 ? ` (Diskon: ${formatRp(totalDiskon)})` : "";
+
     if (jenis === "penjualan") {
       const pend = byCode("4.2.1.01");
       const hpp = byCode("5.1.1.01");
@@ -251,16 +289,17 @@ const ScanStruk = forwardRef<ScanStrukHandle, { hanyaPembelian?: boolean; classN
       baru.push({
         id: `${now}-jual`,
         date: hari,
-        description: "Scan struk penjualan",
+        description: `Scan struk penjualan${ketDiskon}`,
         lines: [
           { id: `${now}-1`, side: "debit", accountId: kas, amount: total },
           { id: `${now}-2`, side: "credit", accountId: pend, amount: total },
         ],
       });
-      // HPP dari data inventaris; bila produk tidak ditemukan pakai estimasi 60%
+      // HPP dari data inventaris; bila produk tidak ditemukan pakai estimasi 60% harga bersih
       const pokok = data.reduce((s, i) => {
         const p = products.find((x) => x.name.toLowerCase() === i.name.toLowerCase());
-        return s + (p ? p.unitCost * (i.qty || 1) : Math.round(i.price * 0.6));
+        const netItem = Math.max(0, (Number(i.price) || 0) - (Number(i.discount) || 0));
+        return s + (p ? p.unitCost * (i.qty || 1) : Math.round(netItem * 0.6));
       }, 0);
       if (hpp && persediaan && pokok > 0) {
         baru.push({
@@ -277,19 +316,30 @@ const ScanStruk = forwardRef<ScanStrukHandle, { hanyaPembelian?: boolean; classN
       const persediaan = byCode("1.1.4.01");
       const perlengkapan = byCode("1.1.4.03");
       if (!kas || !persediaan || !perlengkapan) return toast("Akun kas/persediaan tidak ditemukan di Bagan Akun.", "peringatan");
+
+      // Hitung harga bersih tiap barang setelah diskon item & alokasi diskon struk secara proporsional
+      const subtotalNetItem = Math.max(1, subtotal - diskonItem);
+      const rasioNet = Math.max(0, total / subtotalNetItem);
+
+      const hitungHargaBersih = (i: ItemStruk) => {
+        const netPerItem = Math.max(0, (Number(i.price) || 0) - (Number(i.discount) || 0));
+        return Math.round(netPerItem * rasioNet);
+      };
+
       const keBahan = data.filter((i) => i.bahanId && i.qty > 0);
-      const nilaiBahan = keBahan.reduce((s, i) => s + i.price, 0);
-      const nilaiLain = total - nilaiBahan;
+      const nilaiBahan = keBahan.reduce((s, i) => s + hitungHargaBersih(i), 0);
+      const nilaiLain = Math.max(0, total - nilaiBahan);
       const lines: JournalEntry["lines"] = [];
       if (nilaiBahan > 0) lines.push({ id: `${now}-5`, side: "debit", accountId: persediaan, amount: nilaiBahan });
       if (nilaiLain > 0) lines.push({ id: `${now}-6`, side: "debit", accountId: perlengkapan, amount: nilaiLain });
       lines.push({ id: `${now}-7`, side: "credit", accountId: kas, amount: total });
-      baru.push({ id: `${now}-beli`, date: hari, description: "Scan struk pembelian", lines });
-      keBahan.forEach((i) => tambahStok(i.bahanId, i.qty, i.price));
+      baru.push({ id: `${now}-beli`, date: hari, description: `Scan struk pembelian${ketDiskon}`, lines });
+      keBahan.forEach((i) => tambahStok(i.bahanId, i.qty, hitungHargaBersih(i)));
       if (keBahan.length) toast(`Stok ${keBahan.length} bahan baku bertambah`, "info");
     }
     setEntries([...baru, ...entries]);
     setData(null);
+    setDiskonStruk(0);
     toast("Struk tercatat sebagai jurnal");
   };
 
@@ -603,83 +653,193 @@ const ScanStruk = forwardRef<ScanStrukHandle, { hanyaPembelian?: boolean; classN
         </Lapisan>
       )}
 
-      {data && (
-        <Lapisan className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden">
-            <div className="p-4 border-b flex justify-between items-center">
-              <h3 className="font-semibold">Konfirmasi Isi Struk {jenis === "pembelian" ? "Pembelian" : "Penjualan"}</h3>
-              <button onClick={() => setData(null)} className="text-sm text-gray-500 hover:text-gray-800">
-                Batal
-              </button>
-            </div>
-            <div className="p-4 max-h-[60vh] overflow-y-auto space-y-3">
-              {jenis === "pembelian" && (
-                <p className="text-xs text-gray-500">Baris yang dicocokkan ke bahan baku akan menambah stok persediaan sesuai jumlahnya.</p>
-              )}
-              {data.map((item, i) => {
-                const b = item.bahanId ? getBahan(item.bahanId) : undefined;
-                return (
-                  <div key={i} className="flex flex-wrap gap-2 items-center rounded-xl border p-2">
-                    <input
-                      value={item.name}
-                      onChange={(e) => {
-                        const cocok = jenis === "pembelian" ? cocokkanBahan(e.target.value) : undefined;
-                        ubahItem(i, { name: e.target.value, ...(cocok && !item.bahanId ? { bahanId: cocok.id } : {}) });
-                      }}
-                      className="border rounded-lg px-3 py-2 flex-1 min-w-[140px] text-sm"
-                      placeholder="Nama barang"
-                    />
-                    {jenis === "pembelian" && (
-                      <select value={item.bahanId} onChange={(e) => ubahItem(i, { bahanId: e.target.value })} className="border rounded-lg px-2 py-2 text-sm w-44">
-                        <option value="">Bukan bahan baku</option>
-                        {bahan.map((x) => (
-                          <option key={x.id} value={x.id}>
-                            {x.nama}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                    <span className="flex items-center gap-1">
+      {data && (() => {
+        const subtotalKotor = data.reduce((s, i) => s + (Number(i.price) || 0), 0);
+        const totalDiskonItem = data.reduce((s, i) => s + (Number(i.discount) || 0), 0);
+        const totalDiskon = totalDiskonItem + (Number(diskonStruk) || 0);
+        const totalBersih = Math.max(0, subtotalKotor - totalDiskon);
+
+        return (
+          <Lapisan className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+              <div className="p-4 border-b flex justify-between items-center">
+                <div>
+                  <h3 className="font-semibold text-gray-900">Konfirmasi Isi Struk {jenis === "pembelian" ? "Pembelian" : "Penjualan"}</h3>
+                  <p className="text-xs text-gray-500">Periksa detail barang, diskon, dan total sebelum dicatat ke jurnal.</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setData(null);
+                    setDiskonStruk(0);
+                  }}
+                  className="text-sm text-gray-500 hover:text-gray-800"
+                >
+                  Batal
+                </button>
+              </div>
+
+              <div className="p-4 overflow-y-auto space-y-3 flex-1">
+                {jenis === "pembelian" && (
+                  <p className="text-xs text-gray-600 bg-amber-50/60 p-2.5 rounded-xl border border-amber-200/60">
+                    💡 Baris yang dicocokkan ke bahan baku akan menambah stok persediaan. Harga perolehan stok otomatis disesuaikan secara proporsional dengan harga setelah diskon.
+                  </p>
+                )}
+
+                {data.map((item, i) => {
+                  const b = item.bahanId ? getBahan(item.bahanId) : undefined;
+                  const itemNet = Math.max(0, (item.price || 0) - (item.discount || 0));
+                  return (
+                    <div key={i} className="rounded-xl border border-gray-200 bg-white p-3 space-y-2 shadow-xs hover:border-gray-300 transition-colors">
+                      <div className="flex gap-2 items-center">
+                        <input
+                          value={item.name}
+                          onChange={(e) => {
+                            const cocok = jenis === "pembelian" ? cocokkanBahan(e.target.value) : undefined;
+                            ubahItem(i, { name: e.target.value, ...(cocok && !item.bahanId ? { bahanId: cocok.id } : {}) });
+                          }}
+                          className="border rounded-lg px-3 py-1.5 flex-1 text-sm font-medium focus:ring-1 focus:ring-primary"
+                          placeholder="Nama barang"
+                        />
+                        {jenis === "pembelian" && (
+                          <select
+                            value={item.bahanId}
+                            onChange={(e) => ubahItem(i, { bahanId: e.target.value })}
+                            className="border rounded-lg px-2 py-1.5 text-xs text-gray-700 max-w-[140px] sm:max-w-[170px]"
+                          >
+                            <option value="">Bukan bahan baku</option>
+                            {bahan.map((x) => (
+                              <option key={x.id} value={x.id}>
+                                {x.nama}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                        <button
+                          onClick={() => setData(data.filter((_, j) => j !== i))}
+                          className="text-gray-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                          aria-label="Hapus"
+                          title="Hapus baris"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-xs pt-1 border-t border-gray-100">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-gray-500">Qty:</span>
+                          <input
+                            type="number"
+                            min={0}
+                            value={item.qty}
+                            onChange={(e) => ubahItem(i, { qty: Number(e.target.value) })}
+                            className="border rounded-md px-2 py-1 w-16 text-right font-medium"
+                          />
+                          <span className="text-gray-500">{b?.satuan ?? "pcs"}</span>
+                        </div>
+
+                        <div className="flex items-center gap-2 sm:gap-3">
+                          <div className="flex items-center gap-1">
+                            <span className="text-gray-500">Harga:</span>
+                            <input
+                              type="number"
+                              min={0}
+                              value={item.price}
+                              onChange={(e) => ubahItem(i, { price: Number(e.target.value) })}
+                              className="border rounded-md px-2 py-1 w-24 text-right font-medium"
+                              placeholder="0"
+                            />
+                          </div>
+
+                          <div className="flex items-center gap-1">
+                            <span className="text-amber-600 font-medium" title="Potongan harga khusus barang ini">
+                              Disc:
+                            </span>
+                            <input
+                              type="number"
+                              min={0}
+                              value={item.discount || ""}
+                              onChange={(e) => ubahItem(i, { discount: Math.max(0, Number(e.target.value)) })}
+                              className={`border rounded-md px-2 py-1 w-20 text-right ${
+                                (item.discount || 0) > 0 ? "border-amber-300 bg-amber-50 text-amber-700 font-semibold" : "text-gray-700"
+                              }`}
+                              placeholder="0"
+                            />
+                          </div>
+
+                          <div className="text-right pl-1 min-w-[70px]">
+                            <span className="text-[10px] block text-gray-400 leading-tight">Net</span>
+                            <span className="font-semibold text-gray-800">{formatRp(itemNet)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                <button
+                  onClick={() => setData([...data, { name: "", price: 0, discount: 0, qty: 1, bahanId: "" }])}
+                  className="text-sm font-medium text-primary hover:underline py-1 inline-flex items-center gap-1"
+                >
+                  + Tambah barang
+                </button>
+
+                <div className="pt-3 border-t space-y-2">
+                  <div className="flex justify-between text-xs text-gray-600">
+                    <span>Subtotal ({data.length} barang)</span>
+                    <span className="tabular-nums font-medium">{formatRp(subtotalKotor)}</span>
+                  </div>
+
+                  {totalDiskonItem > 0 && (
+                    <div className="flex justify-between text-xs text-amber-600">
+                      <span>Total Diskon Item</span>
+                      <span className="tabular-nums font-medium">-{formatRp(totalDiskonItem)}</span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between text-xs bg-amber-50/70 p-2.5 rounded-xl border border-amber-200/80">
+                    <div className="flex items-center gap-1.5 text-amber-900 font-medium">
+                      <Tag className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Diskon Struk / Voucher Belanja</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-amber-700 text-xs">- Rp</span>
                       <input
                         type="number"
                         min={0}
-                        value={item.qty}
-                        onChange={(e) => ubahItem(i, { qty: Number(e.target.value) })}
-                        className="border rounded-lg px-2 py-2 w-20 text-sm text-right"
-                        aria-label="Jumlah"
+                        value={diskonStruk || ""}
+                        onChange={(e) => setDiskonStruk(Math.max(0, Number(e.target.value)))}
+                        className="border border-amber-300 rounded-lg px-2 py-1 w-28 text-right text-xs font-bold text-amber-800 bg-white focus:outline-none focus:ring-1 focus:ring-amber-500"
+                        placeholder="0"
                       />
-                      <span className="text-xs text-gray-500 w-10">{b?.satuan ?? "pcs"}</span>
-                    </span>
-                    <input
-                      type="number"
-                      value={item.price}
-                      onChange={(e) => ubahItem(i, { price: Number(e.target.value) })}
-                      className="border rounded-lg px-3 py-2 w-32 text-sm text-right"
-                      placeholder="Total harga"
-                      aria-label="Total harga"
-                    />
-                    <button onClick={() => setData(data.filter((_, j) => j !== i))} className="text-red-500 px-2" aria-label="Hapus">
-                      ✕
-                    </button>
+                    </div>
                   </div>
-                );
-              })}
-              <button onClick={() => setData([...data, { name: "", price: 0, qty: 1, bahanId: "" }])} className="text-sm font-medium text-primary">
-                + Tambah barang
-              </button>
-              <div className="pt-3 border-t flex justify-between font-bold">
-                <span>Total</span>
-                <span>{formatRp(data.reduce((s, i) => s + (Number(i.price) || 0), 0))}</span>
+
+                  <div className="pt-2 border-t flex justify-between items-baseline font-bold">
+                    <div>
+                      <span className="text-sm text-gray-900">Total Akhir</span>
+                      {totalDiskon > 0 && (
+                        <span className="block text-[11px] font-normal text-emerald-600">
+                          Hemat {formatRp(totalDiskon)}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-lg text-primary tabular-nums">{formatRp(totalBersih)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 border-t bg-gray-50 flex justify-between items-center">
+                <span className="text-xs text-gray-500">
+                  {totalDiskon > 0 ? `Total diskon: ${formatRp(totalDiskon)}` : "Tanpa diskon"}
+                </span>
+                <button onClick={simpan} className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity shadow-sm">
+                  Catat sebagai Jurnal
+                </button>
               </div>
             </div>
-            <div className="p-4 border-t bg-gray-50 flex justify-end">
-              <button onClick={simpan} className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-white">
-                Catat sebagai Jurnal
-              </button>
-            </div>
-          </div>
-        </Lapisan>
-      )}
+          </Lapisan>
+        );
+      })()}
     </div>
   );
 });
