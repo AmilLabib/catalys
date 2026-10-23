@@ -33,11 +33,10 @@ const skema = {
 // "112.500" / "Rp 112.500,00" / "-10.000" -> 112500 (titik & koma Rupiah = pemisah ribuan, sen dibuang, nilai selalu positif)
 const keRupiah = (teks) => Number(String(teks ?? "").replace(/[.,]\d{1,2}$/, "").replace(/\D/g, "")) || 0;
 
+import { fetchGeminiWithRotation } from "./gemini-keys.js";
+
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
-
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) return res.status(500).json({ error: "GEMINI_API_KEY belum diset di server." });
 
   const { foto, jenis, katalog } = req.body ?? {};
   const cocok = typeof foto === "string" && foto.length <= MAKS_FOTO && /^data:(image\/[a-z+]+);base64,(.+)$/.exec(foto);
@@ -58,28 +57,27 @@ export default async function handler(req, res) {
     (daftar.length ? `Bila barang sama dengan nama di katalog, pakai nama katalog persis. Katalog: ${daftar.join("; ")}. ` : "") +
     "Bila gambar bukan struk, kembalikan items kosong dan receiptDiscount '0'.";
 
+  let data = null;
   try {
-    const r = await fetch(`${BASE_URL}/models/${process.env.GEMINI_MODEL || MODEL_DEFAULT}:generateContent`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-      body: JSON.stringify({
-        contents: [{ parts: [{ inline_data: { mime_type: cocok[1], data: cocok[2] } }, { text: prompt }] }],
-        generationConfig: {
-          temperature: 0,
-          maxOutputTokens: 1024,
-          responseMimeType: "application/json",
-          responseSchema: skema,
-          thinkingConfig: { thinkingBudget: 0 },
-        },
-      }),
-    });
-    const data = await r.json();
-    if (!r.ok) {
-      console.error("Gemini error:", data);
-      const pesan = r.status === 429 ? "Kuota Gemini sedang penuh, coba lagi sebentar." : data?.error?.message || "Gemini error";
-      return res.status(r.status).json({ error: pesan });
-    }
+    const payload = {
+      contents: [{ parts: [{ inline_data: { mime_type: cocok[1], data: cocok[2] } }, { text: prompt }] }],
+      generationConfig: {
+        temperature: 0,
+        maxOutputTokens: 1024,
+        responseMimeType: "application/json",
+        responseSchema: skema,
+        thinkingConfig: { thinkingBudget: 0 },
+      },
+    };
 
+    const result = await fetchGeminiWithRotation(payload);
+    data = result.data;
+  } catch (err) {
+    console.error("Scan struk error:", err);
+    return res.status(500).json({ error: err.message || "Gagal membaca struk." });
+  }
+
+  try {
     const teks = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '{"items":[],"receiptDiscount":"0"}';
     let parsed = { items: [], receiptDiscount: "0" };
     try {

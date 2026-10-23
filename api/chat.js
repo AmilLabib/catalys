@@ -28,14 +28,11 @@ ATURAN MENJAWAB:
 3. Selalu gunakan Bahasa Indonesia yang santun, solutif, dan mudah dipahami pelaku usaha.
 4. Jika user bertanya tentang halaman tempat dia berada ("ini halaman apa?", "bagaimana cara pakainya?"), jelaskan secara spesifik sesuai halaman tersebut.`;
 
+import { fetchGeminiWithRotation } from "./gemini-keys.js";
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
-  }
-
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) {
-    return res.status(500).json({ error: "GEMINI_API_KEY belum diset di server." });
   }
 
   const { messages, message, pathname, system } = req.body ?? {};
@@ -75,36 +72,19 @@ export default async function handler(req, res) {
     systemPrompt += `\n\nSaat ini pengguna sedang membuka halaman dengan path: '${pathname}'. Bila user bertanya hal terkait halaman ini, berikan penjelasan sesuai fitur halaman tersebut.`;
   }
 
-  const model = process.env.GEMINI_MODEL || MODEL_DEFAULT;
-
   try {
-    const r = await fetch(`${BASE_URL}/models/${model}:generateContent`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": key,
+    const payload = {
+      systemInstruction: {
+        parts: [{ text: systemPrompt }],
       },
-      body: JSON.stringify({
-        systemInstruction: {
-          parts: [{ text: systemPrompt }],
-        },
-        contents,
-        generationConfig: {
-          temperature: 0.5,
-          maxOutputTokens: 800,
-        },
-      }),
-    });
+      contents,
+      generationConfig: {
+        temperature: 0.5,
+        maxOutputTokens: 800,
+      },
+    };
 
-    const data = await r.json();
-    if (!r.ok) {
-      console.error("Gemini AI Bot error:", data);
-      const pesan =
-        r.status === 429
-          ? "Kuota Gemini sedang penuh, coba lagi sebentar."
-          : data?.error?.message || "Terjadi kesalahan pada layanan Gemini.";
-      return res.status(r.status).json({ error: pesan });
-    }
+    const { data, model, keyIndex, totalKeys } = await fetchGeminiWithRotation(payload);
 
     const replyText =
       data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ||
@@ -113,10 +93,15 @@ export default async function handler(req, res) {
     return res.status(200).json({
       reply: replyText,
       text: replyText,
+      model,
+      keyIndex,
+      totalKeys,
       usage: data.usageMetadata,
     });
   } catch (err) {
     console.error("AI Bot handler error:", err);
-    return res.status(500).json({ error: "Gagal terhubung ke AI Bot." });
+    return res.status(500).json({
+      error: err.message || "Gagal menghubungi layanan AI Gemini.",
+    });
   }
 }
