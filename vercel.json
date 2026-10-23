@@ -5,7 +5,7 @@
       "destination": "https://ai.olagon.site/:path*"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ]

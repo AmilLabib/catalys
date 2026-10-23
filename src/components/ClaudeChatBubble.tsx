@@ -75,60 +75,36 @@ export default function ClaudeChatBubble() {
     setIsLoading(true);
 
     try {
-      // Exclude the initial hardcoded assistant message for the API context
-      // to keep it clean, or map everything except it.
-      const apiMessages: any[] = updatedHistory.slice(1).map((msg) => ({
+      // Exclude initial greeting from user-assistant history context
+      const apiMessages = updatedHistory.slice(1).map((msg) => ({
         role: msg.role === "assistant" ? "assistant" : "user",
         content: msg.content,
       }));
 
-      const payload = {
-        model: "claude-3-5-sonnet-20241022",
-        max_tokens: 1024,
-        system: `Kamu adalah AI Assistant untuk aplikasi bernama 'Catalys', sebuah platform manajemen keuangan dan operasional untuk UMKM. Selalu jawab menggunakan bahasa indonesia tanpa menggunakan emoji atau karakter untuk menebalkan, memiringkan atau mengubah warna teks. 
-        
-BERIKUT ADALAH PENGETAHUAN TENTANG WEBSITE INI YANG HARUS KAMU TAHU:
-1. Halaman Dashboard: Menampilkan ringkasan total pemasukan, pengeluaran, dan profit.
-2. Halaman Financial: Tempat user mencatat transaksi harian, arus kas, dan laporan rugi laba.
-3. Halaman Permodalan: Fitur untuk mengajukan pinjaman ke bank atau investor (BCA, Mandiri, dll).
-4. Halaman Data-Driven: Berisi chart dan grafik analisis bisnis menggunakan AI.
-5. Halaman Internal Management: Mengelola karyawan, KPI, dan sertifikasi/legalitas usaha.
-
-PENTING: Saat ini user sedang berada di halaman/path: '${location.pathname}'.
-
-ATURAN MENJAWAB:
-1. JAWAB SECARA SINGKAT, PADAT, DAN LANGSUNG PADA INTINYA. Jangan bertele-tele.
-2. DILARANG KERAS MENGGUNAKAN FORMATTING MARKDOWN APAPUN (jangan pakai #, *, **, -, atau tabel). Gunakan teks biasa (plain text) dengan spasi atau baris baru saja.
-3. Jawablah selalu dalam Bahasa Indonesia yang baik, ramah, dan solutif.
-
-Jika user bertanya "ini halaman apa?" atau "bagaimana cara pakainya?", atau meminta bantuan, jelaskan sesuai konteks halaman tersebut.`,
-        messages:
-          apiMessages.length > 0
-            ? apiMessages
-            : [{ role: "user", content: userMessage }],
-      };
-
-      const res = await fetch("/anthropic/v1/messages", {
+      const res = await fetch("/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-api-key": import.meta.env.VITE_CLAUDE_API_KEY || "",
-          "anthropic-version": "2023-06-01",
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          messages:
+            apiMessages.length > 0
+              ? apiMessages
+              : [{ role: "user", content: userMessage }],
+          pathname: location.pathname,
+        }),
       });
 
+      const response = await res.json().catch(() => ({}));
+
       if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(`HTTP ${res.status}: ${errorText}`);
+        throw new Error(response?.error || `Server error (${res.status})`);
       }
 
-      const response = await res.json();
-
       const replyText =
-        response?.content?.[0]?.type === "text"
-          ? response.content[0].text
-          : "Respons diterima.";
+        response?.reply ||
+        response?.text ||
+        "Halo! Ada yang bisa saya bantu terkait aplikasi Catalys?";
 
       pakaiKuota("aiBot");
       setChatHistory((prev) => [
@@ -136,12 +112,12 @@ Jika user bertanya "ini halaman apa?" atau "bagaimana cara pakainya?", atau memi
         { role: "assistant", content: replyText },
       ]);
     } catch (error: any) {
-      console.error("Claude API Error:", error);
+      console.error("AI Bot API Error:", error);
       setChatHistory((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: `Maaf, terjadi kesalahan: ${error.message || "Gagal terhubung ke Claude AI."}`,
+          content: `Maaf, terjadi kendala: ${error.message || "Gagal terhubung ke AI Bot."}`,
         },
       ]);
     } finally {
@@ -201,7 +177,7 @@ Jika user bertanya "ini halaman apa?" atau "bagaimana cara pakainya?", atau memi
               </div>
               <div>
                 <h3 className="font-semibold text-sm">catalys bot</h3>
-                <p className="text-xs text-white/80">Powered by Claude</p>
+                <p className="text-xs text-white/80">Powered by Gemini AI</p>
               </div>
             </div>
             <button
